@@ -1,0 +1,213 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © OnlySPX
+// FPL Cheatcode 
+
+// @version=6
+indicator("FPL Cheatcode", "MAs", true)
+
+
+//--------------------------------------------------------------------
+//#region                      Constants
+//--------------------------------------------------------------------
+
+var DEFAULT_LINEWIDTH   = 1
+var DEFAULT_COLOR1      = color.new(#c9daf8, 0)
+var DEFAULT_COLOR2      = color.new(#a4c2f4, 4)
+var DEFAULT_COLOR3      = color.new(#6d9eeb, 8)
+var DEFAULT_COLOR4      = color.new(#3c78d8, 12)
+
+// Orange gradient for hourly
+var DEFAULT_COLOR5      = color.new(#FFA500, 0)
+var DEFAULT_COLOR6      = color.new(#FFA500, 4)
+var DEFAULT_COLOR7      = color.new(#FFA500, 8)
+var DEFAULT_COLOR8      = color.new(#FFA500, 12)
+
+// Yellow gradient for daily
+var DEFAULT_COLOR9      = color.new(#FFFF00, 0)
+var DEFAULT_COLOR10     = color.new(#FFFF00, 4)
+var DEFAULT_COLOR11     = color.new(#FFFF00, 8)
+var DEFAULT_COLOR12     = color.new(#FFFF00, 12)
+
+//#endregion
+
+
+//--------------------------------------------------------------------
+//#region                        Inputs
+//--------------------------------------------------------------------
+
+// Groups
+
+g1 = "#1"
+g2 = "#2"
+g3 = "#3"
+g4 = "#4"
+g5 = "#5"
+g6 = "#6"
+g7 = "#7"
+g8 = "#8"
+g9 = "#9"
+g10 = "#10"
+g11 = "#11"
+g12 = "#12"
+g13 = "Preferences"
+
+
+// Tooltips
+
+tt_timeframe    = "You can display a Moving Average from a higher timeframe. " +
+                     "Note: It will be automatically hidden when switching the chart to a timeframe higher than its timeframe."
+
+
+// Inputs
+
+i_type_1        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g1)
+i_length1       = input.int         (20,     "Length", 1,                                            group=g1)
+i_source1       = input             (close, "Source",                                               group=g1)
+i_offset1       = input.int         (0,     "Offset",                                               group=g1)
+i_timeframe1    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g1)
+
+i_type_2        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g2)
+i_length2       = input.int         (20,    "Length", 1,                                            group=g2)
+i_source2       = input             (close, "Source",                                               group=g2)
+i_offset2       = input.int         (0,     "Offset",                                               group=g2)
+i_timeframe2    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g2)
+
+i_type_3        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g3)
+i_length3       = input.int         (200,    "Length", 1,                                            group=g3)
+i_source3       = input             (close, "Source",                                               group=g3)
+i_offset3       = input.int         (0,     "Offset",                                               group=g3)
+i_timeframe3    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g3)
+
+i_type_4        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g4)
+i_length4       = input.int         (200,   "Length", 1,                                            group=g4)
+i_source4       = input             (close, "Source",                                               group=g4)
+i_offset4       = input.int         (0,     "Offset",                                               group=g4)
+i_timeframe4    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g4)
+
+
+// Hourly MAs
+i_type_5        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g5)
+i_length5       = input.int         (20,     "Length", 1,                                            group=g5)
+i_source5       = input             (close, "Source",                                               group=g5)
+i_offset5       = input.int         (0,     "Offset",                                               group=g5)
+i_timeframe5    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g5)
+
+i_type_6        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g6)
+i_length6       = input.int         (20,    "Length", 1,                                            group=g6)
+i_source6       = input             (close, "Source",                                               group=g6)
+i_offset6       = input.int         (0,     "Offset",                                               group=g6)
+i_timeframe6    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g6)
+
+i_type_7        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g7)
+i_length7       = input.int         (200,    "Length", 1,                                            group=g7)
+i_source7       = input             (close, "Source",                                               group=g7)
+i_offset7       = input.int         (0,     "Offset",                                               group=g7)
+i_timeframe7    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g7)
+
+i_type_8        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g8)
+i_length8       = input.int         (200,   "Length", 1,                                            group=g8)
+i_source8       = input             (close, "Source",                                               group=g8)
+i_offset8       = input.int         (0,     "Offset",                                               group=g8)
+i_timeframe8    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g8)
+
+// Daily MAs
+i_type_9        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g9)
+i_length9       = input.int         (20,     "Length", 1,                                            group=g9)
+i_source9       = input             (close, "Source",                                               group=g9)
+i_offset9       = input.int         (0,     "Offset",                                               group=g9)
+i_timeframe9    = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g9)
+
+i_type_10       = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g10)
+i_length10      = input.int         (20,    "Length", 1,                                            group=g10)
+i_source10      = input             (close, "Source",                                               group=g10)
+i_offset10      = input.int         (0,     "Offset",                                               group=g10)
+i_timeframe10   = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g10)
+
+i_type_11       = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g11)
+i_length11      = input.int         (200,    "Length", 1,                                            group=g11)
+i_source11      = input             (close, "Source",                                               group=g11)
+i_offset11      = input.int         (0,     "Offset",                                               group=g11)
+i_timeframe11   = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g11)
+
+i_type_12       = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g12)
+i_length12      = input.int         (200,   "Length", 1,                                            group=g12)
+i_source12      = input             (close, "Source",                                               group=g12)
+i_offset12      = input.int         (0,     "Offset",                                               group=g12)
+i_timeframe12   = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g12)
+
+i_enableGaps    = input             (true,  "Wait for timeframe closes",                            group=g13)
+
+//#endregion
+
+
+//--------------------------------------------------------------------
+//#region                       Functions 
+//--------------------------------------------------------------------
+
+// @function Get the Moving Average (MA)
+// @returns float
+f_getMa(string _type, float _source, _length) =>
+    switch _type
+        "SMA"           => ta.sma(_source, _length)
+        "EMA"           => ta.ema(_source, _length)
+        "SMMA (RMA)"    => ta.rma(_source, _length)
+        "WMA"           => ta.wma(_source, _length)
+        "VWMA"          => ta.vwma(_source, _length)
+
+
+// @function Check if a timeframe is higher or equal than the chart's one
+// @returns bool
+f_canDisplay(_tf) =>
+    timeframe.in_seconds(_tf) >= timeframe.in_seconds()
+
+//#endregion
+
+
+//--------------------------------------------------------------------
+//#region                         Logic
+//--------------------------------------------------------------------
+
+var gaps = i_enableGaps ? barmerge.gaps_on : barmerge.gaps_off
+
+ma1 = request.security(syminfo.tickerid, i_timeframe1, f_getMa(i_type_1, i_source1, i_length1), gaps=gaps)
+ma2 = request.security(syminfo.tickerid, i_timeframe2, f_getMa(i_type_2, i_source2, i_length2), gaps=gaps)
+ma3 = request.security(syminfo.tickerid, i_timeframe3, f_getMa(i_type_3, i_source3, i_length3), gaps=gaps)
+ma4 = request.security(syminfo.tickerid, i_timeframe4, f_getMa(i_type_4, i_source4, i_length4), gaps=gaps)
+
+// Hourly MAs
+ma5 = request.security(syminfo.tickerid, i_timeframe5, f_getMa(i_type_5, i_source5, i_length5), gaps=gaps)
+ma6 = request.security(syminfo.tickerid, i_timeframe6, f_getMa(i_type_6, i_source6, i_length6), gaps=gaps)
+ma7 = request.security(syminfo.tickerid, i_timeframe7, f_getMa(i_type_7, i_source7, i_length7), gaps=gaps)
+ma8 = request.security(syminfo.tickerid, i_timeframe8, f_getMa(i_type_8, i_source8, i_length8), gaps=gaps)
+
+// Daily MAs
+ma9 = request.security(syminfo.tickerid, i_timeframe9, f_getMa(i_type_9, i_source9, i_length9), gaps=gaps)
+ma10 = request.security(syminfo.tickerid, i_timeframe10, f_getMa(i_type_10, i_source10, i_length10), gaps=gaps)
+ma11 = request.security(syminfo.tickerid, i_timeframe11, f_getMa(i_type_11, i_source11, i_length11), gaps=gaps)
+ma12 = request.security(syminfo.tickerid, i_timeframe12, f_getMa(i_type_12, i_source12, i_length12), gaps=gaps)
+
+//#endregion
+
+
+//--------------------------------------------------------------------
+//#region                   Plotting & styling
+//--------------------------------------------------------------------
+
+plot(f_canDisplay(i_timeframe1) ? ma1 : na, "#1", DEFAULT_COLOR1, DEFAULT_LINEWIDTH, offset=i_offset1)
+plot(f_canDisplay(i_timeframe2) ? ma2 : na, "#2", DEFAULT_COLOR2, DEFAULT_LINEWIDTH, offset=i_offset2)
+plot(f_canDisplay(i_timeframe3) ? ma3 : na, "#3", DEFAULT_COLOR3, DEFAULT_LINEWIDTH, offset=i_offset3)
+plot(f_canDisplay(i_timeframe4) ? ma4 : na, "#4", DEFAULT_COLOR4, DEFAULT_LINEWIDTH, offset=i_offset4)
+
+// Plot hourly MAs
+plot(f_canDisplay(i_timeframe5) ? ma5 : na, "#5", DEFAULT_COLOR5, DEFAULT_LINEWIDTH, offset=i_offset5)
+plot(f_canDisplay(i_timeframe6) ? ma6 : na, "#6", DEFAULT_COLOR6, DEFAULT_LINEWIDTH, offset=i_offset6)
+plot(f_canDisplay(i_timeframe7) ? ma7 : na, "#7", DEFAULT_COLOR7, DEFAULT_LINEWIDTH, offset=i_offset7)
+plot(f_canDisplay(i_timeframe8) ? ma8 : na, "#8", DEFAULT_COLOR8, DEFAULT_LINEWIDTH, offset=i_offset8)
+
+// Plot daily MAs
+plot(f_canDisplay(i_timeframe9) ? ma9 : na, "#9", DEFAULT_COLOR9, DEFAULT_LINEWIDTH, offset=i_offset9)
+plot(f_canDisplay(i_timeframe10) ? ma10 : na, "#10", DEFAULT_COLOR10, DEFAULT_LINEWIDTH, offset=i_offset10)
+plot(f_canDisplay(i_timeframe11) ? ma11 : na, "#11", DEFAULT_COLOR11, DEFAULT_LINEWIDTH, offset=i_offset11)
+plot(f_canDisplay(i_timeframe12) ? ma12 : na, "#12", DEFAULT_COLOR12, DEFAULT_LINEWIDTH, offset=i_offset12)
+
+//#endregion
