@@ -24,6 +24,9 @@ var DEFAULT_COLOR6      = color.new(#FFFF00, 8)  // 200 SMA
 var DEFAULT_COLOR7      = color.new(#FF0000, 0)  // 20 EMA
 var DEFAULT_COLOR8      = color.new(#FF0000, 8)  // 200 SMA
 
+// VWAP color
+var DEFAULT_COLOR_VWAP = color.new(#FF00FF, 0)  // Magenta
+
 //#endregion
 
 
@@ -161,12 +164,18 @@ if barstate.islastconfirmedhistory
     ma7 := f_getMa(i_type_7, close, i_length7)     // Update with last confirmed bar
     ma8 := f_getMa(i_type_8, close, i_length8)     // Update with last confirmed bar
 
+// VWAP calculation
+vwap = ta.vwap(close)
+
 //#endregion
 
 
 //--------------------------------------------------------------------
 //#region                   Plotting & styling
 //--------------------------------------------------------------------
+
+// Plot VWAP
+plot(vwap, "VWAP", DEFAULT_COLOR_VWAP, DEFAULT_LINEWIDTH, style=plot.style_circles)
 
 // Plot MAs
 plot(f_canDisplay(i_timeframe1) ? ma1 : na, "MA #1", DEFAULT_COLOR1, DEFAULT_LINEWIDTH, offset=i_offset1)
