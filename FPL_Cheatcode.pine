@@ -11,21 +11,23 @@ indicator("FPL Cheatcode", "Cheatcode", true)
 //--------------------------------------------------------------------
 
 var DEFAULT_LINEWIDTH   = 1
-var DEFAULT_COLOR1      = color.new(#c9daf8, 0)
-var DEFAULT_COLOR2      = color.new(#a4c2f4, 4)
-var DEFAULT_COLOR3      = color.new(#6d9eeb, 8)
-var DEFAULT_COLOR4      = color.new(#3c78d8, 12)
 
-// Hourly MAs colors
-var DEFAULT_COLOR5      = color.new(#FFFF00, 0)  // 20 EMA
-var DEFAULT_COLOR6      = color.new(#FFFF00, 8)  // 200 SMA
+// Default timeframe MAs colors (Blues)
+var DEFAULT_COLOR1      = color.new(#c9daf8, 0)  // Light Blue - 50 SMA
+var DEFAULT_COLOR2      = color.new(#a4c2f4, 0)  // Medium Blue - 50 EMA
+var DEFAULT_COLOR3      = color.new(#6d9eeb, 0)  // Deep Blue - 200 SMA
+var DEFAULT_COLOR4      = color.new(#3c78d8, 0)  // Dark Blue - 200 EMA
 
-// Daily MAs colors
-var DEFAULT_COLOR7      = color.new(#FF0000, 0)  // 20 EMA
-var DEFAULT_COLOR8      = color.new(#FF0000, 8)  // 200 SMA
+// Hourly MAs colors (Yellow/Orange)
+var DEFAULT_COLOR5      = color.new(#FFFF00, 0)  // Bright Yellow - Fast MA (20 EMA)
+var DEFAULT_COLOR6      = color.new(#FF8C00, 0)  // Deep Orange - Slow MA (200 SMA)
+
+// Daily MAs colors (Red Theme)
+var DEFAULT_COLOR7      = color.new(#FF0000, 0)  // Bright Red - Fast MA (20 EMA)
+var DEFAULT_COLOR8      = color.new(#DC143C, 0)  // Crimson - Slow MA (200 SMA)
 
 // VWAP color
-var DEFAULT_COLOR_VWAP = color.new(#FF00FF, 0)  // Magenta
+var DEFAULT_COLOR_VWAP = color.new(#FF69B4, 0)  // Hot Pink
 
 //#endregion
 

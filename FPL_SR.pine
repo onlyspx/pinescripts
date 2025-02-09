@@ -1,0 +1,58 @@
+// @version=6
+indicator("SR Levels", overlay=true, max_bars_back=1000)
+
+// Inputs
+dailyLevelsInput = input.text_area(defval="", title="Daily levels (Name,Symbol,Low,High)")
+extendZoneRight = input.bool(false, title="Extend Zones Right?", inline="c")
+extendZoneLeft = input.bool(false, title="Extend Zones Left?", inline="c")
+
+// Determine extension direction
+zoneExtension = extendZoneRight ? extend.right : extendZoneLeft ? extend.left : extend.none
+
+// Market Logic
+isSPX = (syminfo.root == "SPX" or syminfo.root == "US500")
+isSPY = syminfo.root == "SPY"
+isES = (syminfo.root == "ES" or syminfo.root == "MES")
+
+// Fixed session times (9:30 AM to 4:00 PM)
+var START_HOUR = 9
+var START_MINUTE = 30
+var END_HOUR = 16
+var END_MINUTE = 0
+
+// Timeframe Logic
+openSession = hour == START_HOUR and minute == START_MINUTE
+leftIndex = ta.barssince(openSession)
+sessionDuration = (END_HOUR - START_HOUR - 1) * 60 + math.abs(END_MINUTE - START_MINUTE)
+
+rightIndex = sessionDuration / timeframe.multiplier
+
+// Process daily levels
+// Format: Name,Symbol,Low,High
+dailyLines = str.split(dailyLevelsInput, "\n")
+for i = 0 to array.size(dailyLines) - 1
+    line = array.get(dailyLines, i)
+    if str.length(line) > 0  // Check if line is not empty
+        columns = str.split(line, ",")
+        label = array.get(columns, 0)        // Name
+        symbol = array.get(columns, 1)       // Symbol
+        lowerBound = str.tonumber(array.get(columns, 2))  // Low
+        upperBound = str.tonumber(array.get(columns, 3))  // High
+
+        // Match symbol to current chart
+        if symbol == "SPX" and isSPX
+            lowerBound := lowerBound
+            upperBound := upperBound
+        else if symbol == "ES" and isES
+            lowerBound := lowerBound
+            upperBound := upperBound
+        else if symbol == "SPY" and isSPY
+            lowerBound := lowerBound
+            upperBound := upperBound
+        else
+            continue  // Skip if symbol doesn't match current chart
+
+        borderColor = close > upperBound ? color.green : close < lowerBound ? color.red : color.white
+        backgroundColor = close > upperBound ? color.new(color.green, 99) : close < lowerBound ? color.new(color.red, 99) : color.new(color.white, 99)
+
+        box.new(bar_index[leftIndex], upperBound, bar_index[leftIndex] + rightIndex, lowerBound, border_color=borderColor, extend=zoneExtension, bgcolor=backgroundColor, text_color=color.white, text=label, text_size=size.normal)
