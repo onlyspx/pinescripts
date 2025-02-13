@@ -7,14 +7,9 @@ dailyLevelsInput = input.text_area(defval="", title="ES daily levels")
 weeklyLevelsInput = input.text_area(defval="", title="ES weekly levels")
 vixLevelsInput = input.text_area(defval="", title="VIX levels")
 
-// Time Inputs
-sessionStartHour = input.int(9, title="Start Time", minval=0, maxval=23, step=1, tooltip="Hour values greater than 16 will push into the next day's session and will be off by one hour due to market settlement hour.", inline="a", group="Time")
-sessionStartMinute = input.int(30, title=" ", minval=0, maxval=59, step=1, inline="a", group="Time")
-sessionEndHour = input.int(16, title="End Time", minval=0, maxval=23, step=1, tooltip="Hour values greater than 16 will push into the next day's session and will be off by one hour due to market settlement hour.", inline="b", group="Time")
-sessionEndMinute = input.int(0, title=" ", minval=0, maxval=59, step=1, inline="b", group="Time")
+// Display Settings
 extendZoneRight = input.bool(false, title="Extend Zones Right?", inline="c")
 extendZoneLeft = input.bool(false, title="Extend Zones Left?", inline="c")
-
 showDailyLevels = input.bool(true, title="Show Daily levels?", inline="d")
 showWeeklyLevels = input.bool(true, title="Show Weekly levels?", inline="d")
 
@@ -25,9 +20,9 @@ isVIX = syminfo.root == "VIX"
 multiplier = isSPX ? esSpxArb : isES ? 1 : na
 
 zoneExtension = extendZoneRight ? extend.right : extendZoneLeft ? extend.left : extend.none
-openSession = hour == sessionStartHour and minute == sessionStartMinute
+openSession = hour == 9 and minute == 30  // Fixed market open at 9:30
 leftIndex = ta.barssince(openSession)
-sessionDuration = (sessionEndHour - sessionStartHour - 1) * 60 + math.abs(sessionEndMinute - sessionStartMinute)
+sessionDuration = 390  // 6.5 hours = 390 minutes (9:30 AM to 4:00 PM)
 rightIndex = sessionDuration / timeframe.multiplier
 
 // Function to process levels
