@@ -27,30 +27,33 @@ rightIndex = sessionDuration / timeframe.multiplier
 
 // Function to process levels
 processLevels(levelInput, showLevels, textColor, alignRight = false) =>
-    var lines = str.split(levelInput, "\n")
-    for i = 0 to array.size(lines) - 1
-        line = array.get(lines, i)
-        if str.length(line) > 0
-            columns = str.split(line, ",")
-            level = str.tonumber(array.get(columns, 0))
-            label = array.get(columns, 1)
-            
-            price = isVIX ? level : isSPX ? level - multiplier : isES ? level : na
-            
-            if (showLevels or isVIX)  // Always show VIX levels
-                lineColor = close > price ? color.green : close < price ? color.red : color.white
-                
-                line.new(bar_index[leftIndex], price, 
-                     bar_index[leftIndex] + rightIndex, price,
-                     color=lineColor,
-                     extend=lineExtension)
-                     
-                label.new(bar_index[leftIndex], price,
-                     text=label,
-                     color=color.new(color.black, 100),
-                     textcolor=textColor,
-                     style=label.style_none,
-                     textalign=alignRight ? text.align_right : text.align_left)
+    if str.length(levelInput) > 0  // Only process if input is not empty
+        var lines = str.split(levelInput, "\n")
+        for i = 0 to array.size(lines) - 1
+            line = array.get(lines, i)
+            if str.length(line) > 0
+                columns = str.split(line, ",")
+                if array.size(columns) >= 2  // Check if we have both level and label
+                    level = str.tonumber(array.get(columns, 0))
+                    label = array.get(columns, 1)
+                    
+                    if not na(level)  // Only process if level is a valid number
+                        price = isVIX ? level : isSPX ? level - multiplier : isES ? level : na
+                        
+                        if not na(price) and (showLevels or isVIX)  // Check price is valid
+                            lineColor = close > price ? color.green : close < price ? color.red : color.white
+                            
+                            line.new(bar_index[leftIndex], price, 
+                                 bar_index[leftIndex] + rightIndex, price,
+                                 color=lineColor,
+                                 extend=lineExtension)
+                                 
+                            label.new(bar_index[leftIndex], price,
+                                 text=label,
+                                 color=color.new(color.black, 100),
+                                 textcolor=textColor,
+                                 style=label.style_none,
+                                 textalign=alignRight ? text.align_right : text.align_left)
 
 // Process all level types
 processLevels(dailyLevelsInput, showDailyLevels, color.white)
