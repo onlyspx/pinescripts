@@ -38,5 +38,28 @@ Resistance,SPX,4505,4510
 Gap Fill,ES,4500,4505
 ```
 
+## Emini Player Zones
+
+Zone visualization indicator for ES/SPX trading.
+
+### Features
+- Multi-symbol support (ES/MES, SPX/US500)
+- Dynamic color zones:
+  - Green: Price above zone
+  - Red: Price below zone
+  - White: Price within zone
+- Configurable market hours
+- Optional zone extension (left/right)
+- ES-SPX price adjustment
+- CSV input format: Low,High,_,Type
+- Raw zone type labels displayed directly
+
+### Example Input
+```
+4500,4505,,bcz
+4510,4515,,ir
+4520,4525,,is
+```
+
 ## License
 Mozilla Public License 2.0

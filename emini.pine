@@ -1,73 +1,54 @@
 //@version=5
 indicator("eminiplayer zones", overlay=true, max_bars_back=1000)
 
+// Market Settings
 indexarb = input.int(37, title="ES - SPX", minval=0, maxval=100)
 
+// Price Levels Input
 textarea = input.text_area(defval = "", title = "ES daily levels")
 
-
+// Time Settings
 ohour   = input.int(9, title="Start Time", minval=0, maxval=23, step=1, tooltip="Hour values greater than 16 will push into the next day's session and will be off by one hour due to market settlement hour.", inline="a", group="Time")
 ominute = input.int(30, title=" ", minval=0, maxval=59, step=1, inline="a", group="Time")
 chour   = input.int(16, title="End Time", minval=0, maxval=23, step=1, tooltip="Hour values greater than 16 will push into the next day's session and will be off by one hour due to market settlement hour.", inline="b", group="Time")
 cminute = input.int(0, title=" ", minval=0, maxval=59, step=1, inline="b", group="Time")
+
+// Zone Display Settings
 ext    = input.bool(false, title="Extend Zones Right?", inline="c")
 extl   = input.bool(false, title="Extend Zones Left?", inline="c")
 extend = ext ? extend.right : extl ? extend.left : extend.none
 
-//Logic
-IsSPX  = (syminfo.root == "SPX" or syminfo.root == "US500" )
-IsQQQ  = syminfo.root == "QQQ"
-IsES   = (syminfo.root == "ES" or syminfo.root == "MES" )
-IsNQ   = (syminfo.root == "NQ" or syminfo.root == "MNQ" or syminfo.root == "US100")
+// Market Detection and Multiplier Logic
+IsSPX  = syminfo.root == "SPX" or syminfo.root == "US500"
+IsES   = syminfo.root == "ES" or syminfo.root == "MES"
+m      = IsSPX ? indexarb : IsES ? 1 : na
 
-m      = IsSPX ? indexarb : IsQQQ ? 1 : IsES ? 1 : IsNQ ? 40 : na
-
-
-// Timeframe Logic
-
+// Time Range Calculation
 openTime = hour == ohour and minute == ominute
 left = ta.barssince(openTime)
-closeTime = hour == chour and minute == cminute
 timerange = (chour - ohour - 1)*60 + math.abs(cminute - ominute)
+right = timerange / timeframe.multiplier
 
-tfcheck = timeframe.period 
-mult = timeframe.multiplier
-right = timerange / mult
-
-
-
+// Process Price Levels and Create Zones
 lines = str.split(textarea, "\n")
 for i = 0 to array.size(lines) - 1
     line = array.get(lines, i)
-    // Split line into columns
     columns = str.split(line, ",")
-
-    // Access column values
-    column1 = str.tonumber(array.get(columns, 0))
-    column2 = str.tonumber(array.get(columns, 1))
-    column3 = array.get(columns, 2)
-    column4 = array.get(columns, 3)
-
-    outputStr = switch column4
-        "Normal" => ""
-        "ir" => "Initial resistance"
-        "is" => "Initial support"
-        "bcz" => "Bias changing zone"
-        "bcoz" => "Bias confirming zone"
-        "pmr" => "Pre-market resistance"
-        "pms" => "Pre-market support"
-        "rex" => "Range extreme"
-        "reh" => "Range exhaustion"
-        "Strong" => "Important Zone"
-        => column4 // default case
-
-
-    b1t = IsSPX ? column2 - m : IsES  ? column2 : na
-    b1b = IsSPX ? column1 - m : IsES  ? column1 : na
-
-    bc1 = close > b1t ? color.green : close < b1b ? color.red : color.white
-
-    bgc1 = close > b1t ? color.new(color.green, 99) : close < b1b ? color.new(color.red, 99) : color.new(color.white,99)
-
-    b1 =  box.new(bar_index[left], b1t, bar_index[left] + right, b1b, border_color = bc1, extend=extend, bgcolor=bgc1, text_color=color.white, text=outputStr, text_size=size.normal)
-
+    
+    price_low = str.tonumber(array.get(columns, 0))
+    price_high = str.tonumber(array.get(columns, 1))
+    zone_type = array.get(columns, 3)
+    
+    zone_top = IsSPX ? price_high - m : IsES ? price_high : na
+    zone_bottom = IsSPX ? price_low - m : IsES ? price_low : na
+    
+    border_color = close > zone_top ? color.green : close < zone_bottom ? color.red : color.white
+    bg_color = close > zone_top ? color.new(color.green, 99) : close < zone_bottom ? color.new(color.red, 99) : color.new(color.white, 99)
+    
+    box.new(bar_index[left], zone_top, bar_index[left] + right, zone_bottom, 
+         border_color=border_color, 
+         extend=extend, 
+         bgcolor=bg_color, 
+         text_color=color.white, 
+         text=zone_type,
+         text_size=size.normal)
