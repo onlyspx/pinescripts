@@ -8,8 +8,8 @@ weeklyLevelsInput = input.text_area(defval="", title="ES weekly levels")
 vixLevelsInput = input.text_area(defval="", title="VIX levels")
 
 // Display Settings
-extendZoneRight = input.bool(false, title="Extend Zones Right?", inline="c")
-extendZoneLeft = input.bool(false, title="Extend Zones Left?", inline="c")
+extendZoneRight = input.bool(false, title="Extend Lines Right?", inline="c")
+extendZoneLeft = input.bool(false, title="Extend Lines Left?", inline="c")
 showDailyLevels = input.bool(true, title="Show Daily levels?", inline="d")
 showWeeklyLevels = input.bool(true, title="Show Weekly levels?", inline="d")
 
@@ -19,7 +19,7 @@ isES = syminfo.root == "ES" or syminfo.root == "MES"
 isVIX = syminfo.root == "VIX"
 multiplier = isSPX ? esSpxArb : isES ? 1 : na
 
-zoneExtension = extendZoneRight ? extend.right : extendZoneLeft ? extend.left : extend.none
+lineExtension = extendZoneRight ? extend.right : extendZoneLeft ? extend.left : extend.none
 openSession = hour == 9 and minute == 30  // Fixed market open at 9:30
 leftIndex = ta.barssince(openSession)
 sessionDuration = 390  // 6.5 hours = 390 minutes (9:30 AM to 4:00 PM)
@@ -38,17 +38,19 @@ processLevels(levelInput, showLevels, textColor, alignRight = false) =>
             price = isVIX ? level : isSPX ? level - multiplier : isES ? level : na
             
             if (showLevels or isVIX)  // Always show VIX levels
-                borderColor = close > price ? color.green : close < price ? color.red : color.white
-                bgColor = close > price ? color.new(color.green, 99) : close < price ? color.new(color.red, 99) : color.new(color.white, 99)
+                lineColor = close > price ? color.green : close < price ? color.red : color.white
                 
-                box.new(bar_index[leftIndex], price, bar_index[leftIndex] + rightIndex, price,
-                     border_color=borderColor,
-                     extend=zoneExtension,
-                     bgcolor=bgColor,
-                     text_color=textColor,
+                line.new(bar_index[leftIndex], price, 
+                     bar_index[leftIndex] + rightIndex, price,
+                     color=lineColor,
+                     extend=lineExtension)
+                     
+                label.new(bar_index[leftIndex], price,
                      text=label,
-                     text_size=size.normal,
-                     text_halign=alignRight ? text.align_right : text.align_left)
+                     color=color.new(color.black, 100),
+                     textcolor=textColor,
+                     style=label.style_none,
+                     textalign=alignRight ? text.align_right : text.align_left)
 
 // Process all level types
 processLevels(dailyLevelsInput, showDailyLevels, color.white)
