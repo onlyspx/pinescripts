@@ -82,48 +82,55 @@ if firstHourComplete
          extend=extendLines ? extend.right : extend.none)
     
     if showLabels
-        // Show range info in a single label at top
-        label.new(bar_index, firstHourHigh + (firstHourRange * 0.1),
+        // Show range info with solid background
+        label.new(bar_index + 10, firstHourHigh + (firstHourRange * 0.1),
              "Range: " + str.tostring(firstHourRange),
-             color=color.new(color.black, 80),
+             color=color.blue,
              textcolor=color.white,
-             style=label.style_label_down,
+             style=label.style_label_left,
              size=size.normal)
         
-        // Price labels with solid background
+        // Base price labels
         label.new(bar_index + 10, firstHourHigh,
              str.tostring(firstHourHigh),
              color=color.green,
+             textcolor=color.white,
              style=label.style_label_left,
              size=size.normal)
         
         label.new(bar_index + 10, firstHourLow,
              str.tostring(firstHourLow),
              color=color.red,
+             textcolor=color.white,
              style=label.style_label_left,
              size=size.normal)
         
-        // Extension labels with solid background
+        // 1.5x extension labels with solid background and white text
         label.new(bar_index + 10, x15High,
-             str.tostring(x15High),
-             color=color.new(color.green, 30),
+             "1.5x " + str.tostring(x15High),
+             color=color.green,
+             textcolor=color.white,
              style=label.style_label_left,
-             size=size.normal)
+             size=size.small)
         
         label.new(bar_index + 10, x15Low,
-             str.tostring(x15Low),
-             color=color.new(color.red, 30),
+             "1.5x " + str.tostring(x15Low),
+             color=color.red,
+             textcolor=color.white,
              style=label.style_label_left,
-             size=size.normal)
+             size=size.small)
         
+        // 2x extension labels with solid background and white text
         label.new(bar_index + 10, x20High,
-             str.tostring(x20High),
-             color=color.new(color.green, 50),
+             "2x " + str.tostring(x20High),
+             color=color.green,
+             textcolor=color.white,
              style=label.style_label_left,
-             size=size.normal)
+             size=size.small)
         
         label.new(bar_index + 10, x20Low,
-             str.tostring(x20Low),
-             color=color.new(color.red, 50),
+             "2x " + str.tostring(x20Low),
+             color=color.red,
+             textcolor=color.white,
              style=label.style_label_left,
-             size=size.normal)
+             size=size.small)
