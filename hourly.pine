@@ -1,0 +1,113 @@
+//@version=5
+indicator("First Hour Range", overlay=true)
+
+// Display Settings
+extendLines = input.bool(true, title="Extend Lines")
+showLabels = input.bool(true, title="Show Labels")
+
+// Variables to store first hour data
+var float firstHourHigh = na
+var float firstHourLow = na
+var float firstHourRange = na
+var bool firstHourComplete = false
+
+// Time conditions
+isFirstMinOfDay = hour == 9 and minute == 30
+isInFirstHour = (hour == 9 and minute >= 30) or (hour == 10 and minute < 30)
+isFirstHourJustComplete = hour == 10 and minute == 30
+
+// Reset values at market open
+if isFirstMinOfDay
+    firstHourHigh := high
+    firstHourLow := low
+    firstHourComplete := false
+
+// Track high/low during first hour
+if isInFirstHour
+    firstHourHigh := math.max(firstHourHigh, high)
+    firstHourLow := math.min(firstHourLow, low)
+
+// Calculate range extensions when first hour completes
+if isFirstHourJustComplete
+    firstHourRange := firstHourHigh - firstHourLow
+    firstHourComplete := true
+
+// Line style based on extension level
+baseStyle = line.style_solid
+x15Style = line.style_dashed
+x20Style = line.style_dotted
+
+// Draw lines and labels
+if firstHourComplete
+    // Base high line
+    line.new(bar_index[1], firstHourHigh, bar_index, firstHourHigh,
+         color=color.green,
+         style=baseStyle,
+         extend=extendLines ? extend.right : extend.none)
+    
+    // Base low line
+    line.new(bar_index[1], firstHourLow, bar_index, firstHourLow,
+         color=color.red,
+         style=baseStyle,
+         extend=extendLines ? extend.right : extend.none)
+    
+    // 1.5x extensions
+    x15High = firstHourHigh + (firstHourRange * 0.5)
+    x15Low = firstHourLow - (firstHourRange * 0.5)
+    
+    line.new(bar_index[1], x15High, bar_index, x15High,
+         color=color.new(color.green, 30),
+         style=x15Style,
+         extend=extendLines ? extend.right : extend.none)
+    
+    line.new(bar_index[1], x15Low, bar_index, x15Low,
+         color=color.new(color.red, 30),
+         style=x15Style,
+         extend=extendLines ? extend.right : extend.none)
+    
+    // 2x extensions
+    x20High = firstHourHigh + firstHourRange
+    x20Low = firstHourLow - firstHourRange
+    
+    line.new(bar_index[1], x20High, bar_index, x20High,
+         color=color.new(color.green, 50),
+         style=x20Style,
+         extend=extendLines ? extend.right : extend.none)
+    
+    line.new(bar_index[1], x20Low, bar_index, x20Low,
+         color=color.new(color.red, 50),
+         style=x20Style,
+         extend=extendLines ? extend.right : extend.none)
+    
+    if showLabels
+        // Base labels
+        label.new(bar_index[1], firstHourHigh, str.tostring(firstHourHigh),
+             color=color.new(color.black, 100),
+             textcolor=color.green,
+             style=label.style_none)
+        
+        label.new(bar_index[1], firstHourLow, str.tostring(firstHourLow),
+             color=color.new(color.black, 100),
+             textcolor=color.red,
+             style=label.style_none)
+        
+        // Extension labels
+        label.new(bar_index[1], x15High, "1.5x " + str.tostring(x15High),
+             color=color.new(color.black, 100),
+             textcolor=color.new(color.green, 30),
+             style=label.style_none)
+        
+        label.new(bar_index[1], x15Low, "1.5x " + str.tostring(x15Low),
+             color=color.new(color.black, 100),
+             textcolor=color.new(color.red, 30),
+             style=label.style_none)
+        
+        label.new(bar_index[1], x20High, "2x " + str.tostring(x20High),
+             color=color.new(color.black, 100),
+             textcolor=color.new(color.green, 50),
+             style=label.style_none)
+        
+        label.new(bar_index[1], x20Low, "2x " + str.tostring(x20Low),
+             color=color.new(color.black, 100),
+             textcolor=color.new(color.red, 50),
+             style=label.style_none)
