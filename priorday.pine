@@ -1,0 +1,890 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nkwdesmond
+
+//@version=6
+indicator('Price levels: Prior/current day/week, pre-market, after-hour high low', 'Level', max_lines_count = 500, max_labels_count = 500, overlay = true)
+
+sma1Length = input.int(20, minval = 1, title = 'SMA #1 Length', group = 'Simple moving average', inline = 'sma1')
+sma1Source = input(close, title = 'Source', group = 'Simple moving average', inline = 'sma1')
+sma1 = ta.sma(sma1Source, sma1Length)
+plot(sma1, title = 'SMA #1', color = #ffb54e, display = display.all - display.price_scale - display.status_line)
+
+sma2Length = input.int(200, minval = 1, title = 'SMA #2 Length', group = 'Simple moving average', inline = 'sma2')
+sma2Source = input(close, title = 'Source', group = 'Simple moving average', inline = 'sma2')
+sma2 = ta.sma(sma2Source, sma2Length)
+plot(sma2, title = 'SMA #2', color = #00ffff, display = display.all - display.price_scale - display.status_line)
+
+levelSettingOption = input.string('Individual level for each day', title = 'Display', options = ['Individual level for each day', 'Most recent level on most recent day', 'Most recent level across the chart'], group = 'Price level', display = display.none)
+levelSetting = levelSettingOption == 'Most recent level on most recent day' ? 'b' : levelSettingOption == 'Most recent level across the chart' ? 'c' : 'a'
+
+pmHighLevel = input.bool(true, title = 'Pre-market high', group = 'Price level', inline = 'pmHigh')
+pmLowLevel = input.bool(true, title = 'Pre-market low', group = 'Price level', inline = 'pmLow')
+priorHighLevel = input.bool(true, title = 'Prior day high', group = 'Price level', inline = 'priorHigh')
+priorLowLevel = input.bool(true, title = 'Prior day low', group = 'Price level', inline = 'priorLow')
+priorOpenLevel = input.bool(false, title = 'Prior day open', group = 'Price level', inline = 'priorOpen')
+priorCloseLevel = input.bool(false, title = 'Prior day close', group = 'Price level', inline = 'priorClose')
+currentOpenLevel = input.bool(false, title = 'Current open', group = 'Price level', inline = 'currentOpen')
+currentHighLevel = input.bool(true, title = 'Current high', group = 'Price level', inline = 'currentHigh')
+currentLowLevel = input.bool(true, title = 'Current low', group = 'Price level', inline = 'currentLow')
+afterHighLevel = input.bool(false, title = 'After-hour high', group = 'Price level', inline = 'afterHigh')
+afterLowLevel = input.bool(false, title = 'After-hour low', group = 'Price level', inline = 'afterLow')
+priorWeekHighLevel = input.bool(true, title = 'Prior week high', group = 'Price level', inline = 'priorWeekHigh')
+priorWeekLowLevel = input.bool(true, title = 'Prior week low', group = 'Price level', inline = 'priorWeekLow')
+currentWeekHighLevel = input.bool(true, title = 'Current week high', group = 'Price level', inline = 'currentWeekHigh')
+currentWeekLowLevel = input.bool(true, title = 'Current week low', group = 'Price level', inline = 'currentWeekLow')
+currentWeekOpenLevel = input.bool(false, title = 'Current week open', group = 'Price level', inline = 'currentWeekOpen')
+priorWeekCloseLevel = input.bool(false, title = 'Prior week close', group = 'Price level', inline = 'priorWeekClose')
+
+pmHighPrice = input.bool(true, title = 'Pre-market high', group = 'Price axis')
+pmLowPrice = input.bool(true, title = 'Pre-market low', group = 'Price axis')
+priorHighPrice = input.bool(true, title = 'Prior day high', group = 'Price axis')
+priorLowPrice = input.bool(true, title = 'Prior day low', group = 'Price axis')
+priorOpenPrice = input.bool(false, title = 'Prior day open', group = 'Price axis')
+priorClosePrice = input.bool(false, title = 'Prior day close', group = 'Price axis')
+currentOpenPrice = input.bool(false, title = 'Current open', group = 'Price axis')
+currentHighPrice = input.bool(true, title = 'Current high', group = 'Price axis')
+currentLowPrice = input.bool(true, title = 'Current low', group = 'Price axis')
+afterHighPrice = input.bool(false, title = 'After-hour high', group = 'Price axis')
+afterLowPrice = input.bool(false, title = 'After-hour Low', group = 'Price axis')
+priorWeekHighPrice = input.bool(true, title = 'Prior week high', group = 'Price axis')
+priorWeekLowPrice = input.bool(true, title = 'Prior week low', group = 'Price axis')
+currentWeekHighPrice = input.bool(true, title = 'Current week high', group = 'Price axis')
+currentWeekLowPrice = input.bool(true, title = 'Current week low', group = 'Price axis')
+currentWeekOpenPrice = input.bool(false, title = 'Current week open', group = 'Price axis')
+priorWeekClosePrice = input.bool(false, title = 'Prior week close', group = 'Price axis')
+
+pmHighColour = input(title = '', defval = #81c583, group = 'Price level', inline = 'pmHigh')
+pmLowColour = input(title = '', defval = #ee9899, group = 'Price level', inline = 'pmLow')
+priorHighColour = input(title = '', defval = #00ff00, group = 'Price level', inline = 'priorHigh')
+priorLowColour = input(title = '', defval = #ff5050, group = 'Price level', inline = 'priorLow')
+priorOpenColour = input(title = '', defval = #ffb54e, group = 'Price level', inline = 'priorOpen')
+priorCloseColour = input(title = '', defval = #00ffff, group = 'Price level', inline = 'priorClose')
+currentOpenColour = input(title = '', defval = #ffb54e, group = 'Price level', inline = 'currentOpen')
+currentHighColour = input(title = '', defval = #80ffbb, group = 'Price level', inline = 'currentHigh')
+currentLowColour = input(title = '', defval = #ff0000, group = 'Price level', inline = 'currentLow')
+afterHighColour = input(title = '', defval = #ffff00, group = 'Price level', inline = 'afterHigh')
+afterLowColour = input(title = '', defval = #8888ff, group = 'Price level', inline = 'afterLow')
+priorWeekHighColour = input(title = '', defval = #0080ff, group = 'Price level', inline = 'priorWeekHigh')
+priorWeekLowColour = input(title = '', defval = #ff22ff, group = 'Price level', inline = 'priorWeekLow')
+currentWeekHighColour = input(title = '', defval = #64b4f6, group = 'Price level', inline = 'currentWeekHigh')
+currentWeekLowColour = input(title = '', defval = #ff88ff, group = 'Price level', inline = 'currentWeekLow')
+currentWeekOpenColour = input(title = '', defval = #ffb54e, group = 'Price level', inline = 'currentWeekOpen')
+priorWeekCloseColour = input(title = '', defval = #00ffff, group = 'Price level', inline = 'priorWeekClose')
+
+pmHighLineWidth = input(1, 'Width', group = 'Price level', inline = 'pmHigh', display = display.none)
+pmLowLineWidth = input(1, 'Width', group = 'Price level', inline = 'pmLow', display = display.none)
+priorHighLineWidth = input(1, 'Width', group = 'Price level', inline = 'priorHigh', display = display.none)
+priorLowLineWidth = input(1, 'Width', group = 'Price level', inline = 'priorLow', display = display.none)
+priorOpenLineWidth = input(1, 'Width', group = 'Price level', inline = 'priorOpen', display = display.none)
+priorCloseLineWidth = input(1, 'Width', group = 'Price level', inline = 'priorClose', display = display.none)
+currentOpenLineWidth = input(1, 'Width', group = 'Price level', inline = 'currentOpen', display = display.none)
+currentHighLineWidth = input(1, 'Width', group = 'Price level', inline = 'currentHigh', display = display.none)
+currentLowLineWidth = input(1, 'Width', group = 'Price level', inline = 'currentLow', display = display.none)
+afterHighLineWidth = input(1, 'Width', group = 'Price level', inline = 'afterHigh', display = display.none)
+afterLowLineWidth = input(1, 'Width', group = 'Price level', inline = 'afterLow', display = display.none)
+priorWeekHighLineWidth = input(1, 'Width', group = 'Price level', inline = 'priorWeekHigh', display = display.none)
+priorWeekLowLineWidth = input(1, 'Width', group = 'Price level', inline = 'priorWeekLow', display = display.none)
+currentWeekHighLineWidth = input(1, 'Width', group = 'Price level', inline = 'currentWeekHigh', display = display.none)
+currentWeekLowLineWidth = input(1, 'Width', group = 'Price level', inline = 'currentWeekLow', display = display.none)
+currentWeekOpenLineWidth = input(1, 'Width', group = 'Price level', inline = 'currentWeekOpen', display = display.none)
+priorWeekCloseLineWidth = input(1, 'Width', group = 'Price level', inline = 'priorWeekClose', display = display.none)
+
+pmHighStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'pmHigh', display = display.none)
+pmLowStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'pmLow', display = display.none)
+priorHighStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'priorHigh', display = display.none)
+priorLowStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'priorLow', display = display.none)
+priorOpenStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'priorOpen', display = display.none)
+priorCloseStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'priorClose', display = display.none)
+currentOpenStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'currentOpen', display = display.none)
+currentHighStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'currentHigh', display = display.none)
+currentLowStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'currentLow', display = display.none)
+afterHighStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'afterHigh', display = display.none)
+afterLowStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'afterLow', display = display.none)
+priorWeekHighStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'priorWeekHigh', display = display.none)
+priorWeekLowStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'priorWeekLow', display = display.none)
+currentWeekHighStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'currentWeekHigh', display = display.none)
+currentWeekLowStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'currentWeekLow', display = display.none)
+currentWeekOpenStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'currentWeekOpen', display = display.none)
+priorWeekCloseStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'priorWeekClose', display = display.none)
+
+pmHighLineStyle = pmHighStyleOption == 'dotted (┈)' ? line.style_dotted : pmHighStyleOption == 'dashed (╌)' ? line.style_dashed : pmHighStyleOption == 'arrow left (←)' ? line.style_arrow_left : pmHighStyleOption == 'arrow right (→)' ? line.style_arrow_right : pmHighStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+pmLowLineStyle = pmLowStyleOption == 'dotted (┈)' ? line.style_dotted : pmLowStyleOption == 'dashed (╌)' ? line.style_dashed : pmLowStyleOption == 'arrow left (←)' ? line.style_arrow_left : pmLowStyleOption == 'arrow right (→)' ? line.style_arrow_right : pmLowStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+priorHighLineStyle = priorHighStyleOption == 'dotted (┈)' ? line.style_dotted : priorHighStyleOption == 'dashed (╌)' ? line.style_dashed : priorHighStyleOption == 'arrow left (←)' ? line.style_arrow_left : priorHighStyleOption == 'arrow right (→)' ? line.style_arrow_right : priorHighStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+priorLowLineStyle = priorLowStyleOption == 'dotted (┈)' ? line.style_dotted : priorLowStyleOption == 'dashed (╌)' ? line.style_dashed : priorLowStyleOption == 'arrow left (←)' ? line.style_arrow_left : priorLowStyleOption == 'arrow right (→)' ? line.style_arrow_right : priorLowStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+priorOpenLineStyle = priorOpenStyleOption == 'dotted (┈)' ? line.style_dotted : priorOpenStyleOption == 'dashed (╌)' ? line.style_dashed : priorOpenStyleOption == 'arrow left (←)' ? line.style_arrow_left : priorOpenStyleOption == 'arrow right (→)' ? line.style_arrow_right : priorOpenStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+priorCloseLineStyle = priorCloseStyleOption == 'dotted (┈)' ? line.style_dotted : priorCloseStyleOption == 'dashed (╌)' ? line.style_dashed : priorCloseStyleOption == 'arrow left (←)' ? line.style_arrow_left : priorCloseStyleOption == 'arrow right (→)' ? line.style_arrow_right : priorCloseStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+currentOpenLineStyle = currentOpenStyleOption == 'dotted (┈)' ? line.style_dotted : currentOpenStyleOption == 'dashed (╌)' ? line.style_dashed : currentOpenStyleOption == 'arrow left (←)' ? line.style_arrow_left : currentOpenStyleOption == 'arrow right (→)' ? line.style_arrow_right : currentOpenStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+currentLowLineStyle = currentLowStyleOption == 'dotted (┈)' ? line.style_dotted : currentLowStyleOption == 'dashed (╌)' ? line.style_dashed : currentLowStyleOption == 'arrow left (←)' ? line.style_arrow_left : currentLowStyleOption == 'arrow right (→)' ? line.style_arrow_right : currentLowStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+currentHighLineStyle = currentHighStyleOption == 'dotted (┈)' ? line.style_dotted : currentHighStyleOption == 'dashed (╌)' ? line.style_dashed : currentHighStyleOption == 'arrow left (←)' ? line.style_arrow_left : currentHighStyleOption == 'arrow right (→)' ? line.style_arrow_right : currentHighStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+afterHighLineStyle = afterHighStyleOption == 'dotted (┈)' ? line.style_dotted : afterHighStyleOption == 'dashed (╌)' ? line.style_dashed : afterHighStyleOption == 'arrow left (←)' ? line.style_arrow_left : afterHighStyleOption == 'arrow right (→)' ? line.style_arrow_right : afterHighStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+afterLowLineStyle = afterLowStyleOption == 'dotted (┈)' ? line.style_dotted : afterLowStyleOption == 'dashed (╌)' ? line.style_dashed : afterLowStyleOption == 'arrow left (←)' ? line.style_arrow_left : afterLowStyleOption == 'arrow right (→)' ? line.style_arrow_right : afterLowStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+priorWeekHighLineStyle = priorWeekHighStyleOption == 'dotted (┈)' ? line.style_dotted : priorWeekHighStyleOption == 'dashed (╌)' ? line.style_dashed : priorWeekHighStyleOption == 'arrow left (←)' ? line.style_arrow_left : priorWeekHighStyleOption == 'arrow right (→)' ? line.style_arrow_right : priorWeekHighStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+priorWeekLowLineStyle = priorWeekLowStyleOption == 'dotted (┈)' ? line.style_dotted : priorWeekLowStyleOption == 'dashed (╌)' ? line.style_dashed : priorWeekLowStyleOption == 'arrow left (←)' ? line.style_arrow_left : priorWeekLowStyleOption == 'arrow right (→)' ? line.style_arrow_right : priorWeekLowStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+currentWeekHighLineStyle = currentWeekHighStyleOption == 'dotted (┈)' ? line.style_dotted : currentWeekHighStyleOption == 'dashed (╌)' ? line.style_dashed : currentWeekHighStyleOption == 'arrow left (←)' ? line.style_arrow_left : currentWeekHighStyleOption == 'arrow right (→)' ? line.style_arrow_right : currentWeekHighStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+currentWeekLowLineStyle = currentWeekLowStyleOption == 'dotted (┈)' ? line.style_dotted : currentWeekLowStyleOption == 'dashed (╌)' ? line.style_dashed : currentWeekLowStyleOption == 'arrow left (←)' ? line.style_arrow_left : currentWeekLowStyleOption == 'arrow right (→)' ? line.style_arrow_right : currentWeekLowStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+currentWeekOpenLineStyle = currentWeekOpenStyleOption == 'dotted (┈)' ? line.style_dotted : currentWeekOpenStyleOption == 'dashed (╌)' ? line.style_dashed : currentWeekOpenStyleOption == 'arrow left (←)' ? line.style_arrow_left : currentWeekOpenStyleOption == 'arrow right (→)' ? line.style_arrow_right : currentWeekOpenStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+priorWeekCloseLineStyle = priorWeekCloseStyleOption == 'dotted (┈)' ? line.style_dotted : priorWeekCloseStyleOption == 'dashed (╌)' ? line.style_dashed : priorWeekCloseStyleOption == 'arrow left (←)' ? line.style_arrow_left : priorWeekCloseStyleOption == 'arrow right (→)' ? line.style_arrow_right : priorWeekCloseStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+
+secondBool = input.bool(true, title = 'Seconds', group = 'Price axis visibility', inline = 'second')
+minuteBool = input.bool(true, title = 'Minutes', group = 'Price axis visibility', inline = 'minute')
+hourBool = input.bool(true, title = 'Hours', group = 'Price axis visibility', inline = 'hour')
+dayBool = input.bool(false, title = 'Days', group = 'Price axis visibility', inline = 'day')
+weekBool = input.bool(false, title = 'Weeks', group = 'Price axis visibility', inline = 'week')
+monthBool = input.bool(false, title = 'Months', group = 'Price axis visibility', inline = 'month')
+
+secondMin = input.int(1, '', 1, 59, group = 'Price axis visibility', inline = 'second', display = display.none)
+secondMax = input.int(59, '-', 1, 59, group = 'Price axis visibility', inline = 'second', display = display.none)
+minuteMin = input.int(1, '', 1, 59, group = 'Price axis visibility', inline = 'minute', display = display.none)
+minuteMax = input.int(59, '-', 1, 59, group = 'Price axis visibility', inline = 'minute', display = display.none)
+hourMin = input.int(1, '', 1, 24, group = 'Price axis visibility', inline = 'hour', display = display.none)
+hourMax = input.int(24, '-', 1, 24, group = 'Price axis visibility', inline = 'hour', display = display.none)
+dayMin = input.int(1, '', 1, 366, group = 'Price axis visibility', inline = 'day', display = display.none)
+dayMax = input.int(366, '-', 1, 366, group = 'Price axis visibility', inline = 'day', display = display.none)
+weekMin = input.int(1, '', 1, 52, group = 'Price axis visibility', inline = 'week', display = display.none)
+weekMax = input.int(52, '-', 1, 52, group = 'Price axis visibility', inline = 'week', display = display.none)
+monthMin = input.int(1, '', 1, 12, group = 'Price axis visibility', inline = 'month', display = display.none)
+monthMax = input.int(12, '-', 1, 12, group = 'Price axis visibility', inline = 'month', display = display.none)
+
+timeframeNumberstr = str.match(timeframe.period, '[0-9]*')
+timeframeNumber = str.tonumber(timeframeNumberstr)
+timeframeLetter = str.match(timeframe.period, '[A-Z]')
+
+bool timeframePlot = false
+
+if secondBool and timeframeLetter == 'S' and secondMin <= timeframeNumber and secondMax >= timeframeNumber
+    timeframePlot := true
+if minuteBool and timeframeLetter == '' and minuteMin <= timeframeNumber and minuteMax >= timeframeNumber
+    timeframePlot := true
+if hourBool and timeframeLetter == '' and hourMin * 60 <= timeframeNumber and hourMax * 60 >= timeframeNumber
+    timeframePlot := true
+if dayBool and timeframeLetter == 'D' and dayMin <= timeframeNumber and dayMax >= timeframeNumber
+    timeframePlot := true
+if weekBool and timeframeLetter == 'W' and weekMin <= timeframeNumber and weekMax >= timeframeNumber
+    timeframePlot := true
+if monthBool and timeframeLetter == 'M' and monthMin <= timeframeNumber and monthMax >= timeframeNumber
+    timeframePlot := true
+
+LabelBool = input.bool(false, title = 'Enable labels (Alternatively go to Chart settings > Scales and lines > Indicators and financials > check Name to display label on price axis)', group = 'Label')
+
+var line pmHighLine = na
+var line pmLowLine = na
+var line priorHighLine = na
+var line priorLowLine = na
+var line priorOpenLine = na
+var line priorCloseLine = na
+var line currentOpenLine = na
+var line currentHighLine = na
+var line currentLowLine = na
+var line afterHighLine = na
+var line afterLowLine = na
+var line priorWeekHighLine = na
+var line priorWeekLowLine = na
+var line currentWeekHighLine = na
+var line currentWeekLowLine = na
+var line currentWeekOpenLine = na
+var line priorWeekCloseLine = na
+
+var float pmHigh = na
+var float pmLow = na
+var float priorHigh = na
+var float priorLow = na
+var float priorOpen = na
+var float priorClose = na
+var float currentHigh = na
+var float currentLow = na
+var float currentOpen = na
+var float afterHigh = na
+var float afterLow = na
+var float priorWeekHigh = na
+var float priorWeekLow = na
+var float currentWeekHigh = na
+var float currentWeekLow = na
+var float currentWeekOpen = na
+var float priorWeekClose = na
+
+var int weekOfYearPost = na
+var int weekOfYearRegular = na
+
+ATHLevel = input.bool(true, title = 'All-time high', group = 'Price level', inline = 'ATH')
+ATHPrice = input.bool(true, title = 'All-time high', group = 'Price axis')
+ATHLabelBool = input.bool(true, title = 'All-time high', group = 'Label', inline = 'ATH')
+ATHLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'ATH')
+ATHLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'ATH', display = display.none)
+ATHLabelAlign = ATHLabelAlignOption == 'align left' ? text.align_left : ATHLabelAlignOption == 'align center' ? text.align_center : text.align_right
+ATHLabelText = input.string('All-time high ', title = 'Text', group = 'Label', inline = 'ATH', display = display.none)
+ATHLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'ATH')
+ATHLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'ATH')
+ATHOffset = input.int(20, title = 'Bar offset', group = 'Label', display = display.none, inline = 'ATH')
+ATHColour = input(title = '', defval = color.lime, group = 'Price level', inline = 'ATH')
+ATHLineWidth = input(3, 'Width', group = 'Price level', inline = 'ATH', display = display.none)
+ATHStyleOption = input.string('solid (─)', title = '', options = ['solid (─)', 'dotted (┈)', 'dashed (╌)', 'arrow left (←)', 'arrow right (→)', 'arrows both (↔)'], group = 'Price level', inline = 'ATH', display = display.none)
+ATHLineStyle = ATHStyleOption == 'dotted (┈)' ? line.style_dotted : ATHStyleOption == 'dashed (╌)' ? line.style_dashed : ATHStyleOption == 'arrow left (←)' ? line.style_arrow_left : ATHStyleOption == 'arrow right (→)' ? line.style_arrow_right : ATHStyleOption == 'arrows both (↔)' ? line.style_arrow_both : line.style_solid
+ATHIntradayBool = input.bool(false, title = 'All-time high on intraday chart only', group = 'Price level', inline = 'ATH')
+
+var line ATHLine = na
+var float ATH = na
+var label ATHLabel = na
+
+// h__ttps://www.tradingcode.net/tradingview/all-time-high-value/
+// GetChartHighest() returns the highest value of the given argument for the entire chart. 
+// `dataSeries` argument is optional and defaults to the bar high prices when not set.
+// Note: function's output depends on how many bars TradingView loaded on chart.
+GetChartHighest(dataSeries = high) =>
+    var chartHighest = dataSeries
+    if dataSeries > nz(chartHighest, -1e10)
+        chartHighest := dataSeries
+    chartHighest
+// GetAllTimeHigh() returns the all-time highest value for the given series.
+// GetAllTimeHigh(dataSeries = high) =>
+//     highestHTF = request.security(syminfo.tickerid, "M", GetChartHighest(dataSeries), lookahead=barmerge.lookahead_on)
+    // highestChartTF = GetChartHighest(dataSeries)
+    // math.max(highestHTF, highestChartTF)
+ATH := request.security(syminfo.tickerid, "M", GetChartHighest(), lookahead=barmerge.lookahead_on)
+if bar_index == 0 and (timeframe.isintraday or not ATHIntradayBool)
+    if ATHLevel // bar_index +1 because there is a glitch where when both x-values are the same, a vertical line ends up forming
+        ATHLine := line.new(bar_index, ATH, bar_index + 1, ATH, color = ATHColour, style = ATHLineStyle, width = ATHLineWidth, extend = extend.both)
+    if ATHLabelBool and LabelBool
+        ATHLabel := label.new(bar_index + ATHOffset, ATH, text = ATHLabelPriceBool ? ATHLabelText + str.tostring(ATH, format.mintick) : ATHLabelText, color = ATHColour, style = label.style_label_left, textcolor = ATHLabelTextColour, size = ATHLabelTextSize, textalign = ATHLabelAlign)
+if (timeframe.isintraday or not ATHIntradayBool) and ATH != ATH[1] // shift ATH in real-time
+    line.set_y1(ATHLine, ATH)
+    line.set_y2(ATHLine, ATH)
+    if LabelBool
+        label.set_y(ATHLabel, ATH)
+        label.set_text(ATHLabel, ATHLabelText + str.tostring(ATH, format.mintick))
+
+plot((timeframe.isintraday or not ATHIntradayBool) and ATHPrice and timeframePlot ? ATH : na, title = 'All-time high', color = ATHColour, editable = false, display = display.price_scale)
+
+if timeframe.isintraday
+    if bar_index == 0
+        if syminfo.session == session.extended
+            if pmHighLevel // bar_index +1 because there is a glitch where when both x-values are the same, a vertical line ends up forming
+                pmHighLine := line.new(bar_index, pmHigh, bar_index + 1, pmHigh, color = pmHighColour, style = pmHighLineStyle, width = pmHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if pmLowLevel
+                pmLowLine := line.new(bar_index, pmLow, bar_index + 1, pmLow, color = pmLowColour, style = pmLowLineStyle, width = pmLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if afterHighLevel
+                afterHighLine := line.new(bar_index, afterHigh, bar_index + 1, afterHigh, color = afterHighColour, style = afterHighLineStyle, width = afterHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if afterLowLevel
+                afterLowLine := line.new(bar_index, afterLow, bar_index + 1, afterLow, color = afterLowColour, style = afterLowLineStyle, width = afterLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if priorHighLevel
+            priorHighLine := line.new(bar_index, priorHigh, bar_index + 1, priorHigh, color = priorHighColour, style = priorHighLineStyle, width = priorHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if priorLowLevel
+            priorLowLine := line.new(bar_index, priorLow, bar_index + 1, priorLow, color = priorLowColour, style = priorLowLineStyle, width = priorLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if priorOpenLevel
+            priorOpenLine := line.new(bar_index, priorOpen, bar_index + 1, priorOpen, color = priorOpenColour, style = priorOpenLineStyle, width = priorOpenLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if priorCloseLevel
+            priorCloseLine := line.new(bar_index, priorClose, bar_index + 1, priorClose, color = priorCloseColour, style = priorCloseLineStyle, width = priorCloseLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if currentOpenLevel
+            currentOpenLine := line.new(bar_index, currentOpen, bar_index + 1, currentOpen, color = currentOpenColour, style = currentOpenLineStyle, width = currentOpenLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if currentHighLevel
+            currentHighLine := line.new(bar_index, currentHigh, bar_index + 1, currentHigh, color = currentHighColour, style = currentHighLineStyle, width = currentHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if currentLowLevel
+            currentLowLine := line.new(bar_index, currentLow, bar_index + 1, currentLow, color = currentLowColour, style = currentLowLineStyle, width = currentLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if currentWeekHighLevel
+            currentWeekHighLine := line.new(bar_index, currentWeekHigh, bar_index + 1, currentWeekHigh, color = currentWeekHighColour, style = currentWeekHighLineStyle, width = currentWeekHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if currentWeekLowLevel
+            currentWeekLowLine := line.new(bar_index, currentWeekLow, bar_index + 1, currentWeekLow, color = currentWeekLowColour, style = currentWeekLowLineStyle, width = currentWeekLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if priorWeekHighLevel
+            priorWeekHighLine := line.new(bar_index, priorWeekHigh, bar_index + 1, priorWeekHigh, color = priorWeekHighColour, style = priorWeekHighLineStyle, width = priorWeekHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if priorWeekLowLevel
+            priorWeekLowLine := line.new(bar_index, priorWeekLow, bar_index + 1, priorWeekLow, color = priorWeekLowColour, style = priorWeekLowLineStyle, width = priorWeekLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if currentWeekOpenLevel
+            currentWeekOpenLine := line.new(bar_index, currentWeekOpen, bar_index + 1, currentWeekOpen, color = currentWeekOpenColour, style = currentWeekOpenLineStyle, width = currentWeekOpenLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+        if priorWeekCloseLevel
+            priorWeekCloseLine := line.new(bar_index, priorWeekClose, bar_index + 1, priorWeekClose, color = priorWeekCloseColour, style = priorWeekCloseLineStyle, width = priorWeekCloseLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+
+    if session.ispremarket and session.isfirstbar // initialize pmHigh and pmLow for new day
+        pmHigh := high
+        pmLow := low
+    if session.ispremarket and high > pmHigh
+        pmHigh := high
+        line.set_y1(pmHighLine, pmHigh) // shift pmHigh in real-time
+        line.set_y2(pmHighLine, pmHigh)
+    if session.ispremarket and low < pmLow
+        pmLow := low
+        line.set_y1(pmLowLine, pmLow) // shift pmLow in real-time
+        line.set_y2(pmLowLine, pmLow)
+
+    // priorHigh := request.security(syminfo.tickerid, 'D', syminfo.session == session.extended ? high : high[1], lookahead = barmerge.lookahead_on) // session.isfirstbar does not work here
+    // priorLow := request.security(syminfo.tickerid, 'D', syminfo.session == session.extended ? low : low[1], lookahead = barmerge.lookahead_on)
+    // priorOpen := request.security(syminfo.tickerid, 'D', syminfo.session == session.extended ? open : open[1], lookahead = barmerge.lookahead_on)
+    // priorClose := request.security(syminfo.tickerid, 'D', syminfo.session == session.extended ? close : close[1], lookahead = barmerge.lookahead_on)
+    // if not session.isfirstbar
+    //     priorHigh := priorHigh[1]
+    //     priorLow := priorLow[1]
+    //     priorOpen := priorOpen[1]
+    //     priorClose := priorClose[1]
+    if session.isfirstbar
+        if syminfo.session == session.extended
+            [ph, pl, po, pc] = request.security(syminfo.tickerid, 'D', [high, low, open, close], lookahead = barmerge.lookahead_on)
+            priorHigh := ph
+            priorLow := pl
+            priorOpen := po
+            priorClose := pc
+        else    
+            [ph, pl, po, pc] = request.security(syminfo.tickerid, 'D', [high[1], low[1], open[1], close[1]], lookahead = barmerge.lookahead_on)
+            priorHigh := ph
+            priorLow := pl
+            priorOpen := po
+            priorClose := pc
+        // priorHigh := request.security(syminfo.tickerid, 'D', syminfo.session == session.extended ? high : high[1], lookahead = barmerge.lookahead_on)
+        // priorLow := request.security(syminfo.tickerid, 'D', syminfo.session == session.extended ? low : low[1], lookahead = barmerge.lookahead_on)
+        // priorOpen := request.security(syminfo.tickerid, 'D', syminfo.session == session.extended ? open : open[1], lookahead = barmerge.lookahead_on)
+        // priorClose := request.security(syminfo.tickerid, 'D', syminfo.session == session.extended ? close : close[1], lookahead = barmerge.lookahead_on)
+        if levelSetting != 'a' // adjust the old lines if option 'a' is not selected
+            line.set_x1(pmHighLine, bar_index)
+            line.set_x2(pmHighLine, bar_index + 1)
+            line.set_y1(pmHighLine, pmHigh)
+            line.set_y2(pmHighLine, pmHigh)
+
+            line.set_x1(pmLowLine, bar_index)
+            line.set_x2(pmLowLine, bar_index + 1)
+            line.set_y1(pmLowLine, pmLow)
+            line.set_y2(pmLowLine, pmLow)
+
+            line.set_x1(priorHighLine, bar_index)
+            line.set_x2(priorHighLine, bar_index + 1)
+            line.set_y1(priorHighLine, priorHigh)
+            line.set_y2(priorHighLine, priorHigh)
+
+            line.set_x1(priorLowLine, bar_index)
+            line.set_x2(priorLowLine, bar_index + 1)
+            line.set_y1(priorLowLine, priorLow)
+            line.set_y2(priorLowLine, priorLow)
+
+            line.set_x1(priorOpenLine, bar_index)
+            line.set_x2(priorOpenLine, bar_index + 1)
+            line.set_y1(priorOpenLine, priorOpen)
+            line.set_y2(priorOpenLine, priorOpen)
+
+            line.set_x1(priorCloseLine, bar_index)
+            line.set_x2(priorCloseLine, bar_index + 1)
+            line.set_y1(priorCloseLine, priorClose)
+            line.set_y2(priorCloseLine, priorClose)
+        else // option 'a' is selected
+            line.set_extend(pmHighLine, extend.none) // so that lines from prior days will not extend right to price axis 
+            line.set_extend(pmLowLine, extend.none)
+            line.set_extend(priorHighLine, extend.none)
+            line.set_extend(priorLowLine, extend.none)
+            line.set_extend(priorOpenLine, extend.none)
+            line.set_extend(priorCloseLine, extend.none)
+            // priorHigh := currentHigh[1] // since this is first bar, the previous value will be that of prior day
+            // priorLow := currentLow[1]
+            // priorOpen := currentOpen[1]
+            // priorClose := currentClose[1]
+            if pmHighLevel
+                pmHighLine := line.new(bar_index, pmHigh, bar_index + 1, pmHigh, color = pmHighColour, style = pmHighLineStyle, width = pmHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if pmLowLevel
+                pmLowLine := line.new(bar_index, pmLow, bar_index + 1, pmLow, color = pmLowColour, style = pmLowLineStyle, width = pmLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if priorHighLevel
+                priorHighLine := line.new(bar_index, priorHigh, bar_index + 1, priorHigh, color = priorHighColour, style = priorHighLineStyle, width = priorHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if priorLowLevel
+                priorLowLine := line.new(bar_index, priorLow, bar_index + 1, priorLow, color = priorLowColour, style = priorLowLineStyle, width = priorLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if priorOpenLevel
+                priorOpenLine := line.new(bar_index, priorOpen, bar_index + 1, priorOpen, color = priorOpenColour, style = priorOpenLineStyle, width = priorOpenLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if priorCloseLevel
+                priorCloseLine := line.new(bar_index, priorClose, bar_index + 1, priorClose, color = priorCloseColour, style = priorCloseLineStyle, width = priorCloseLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+    else
+        line.set_x2(pmHighLine, bar_index)
+        line.set_x2(pmLowLine, bar_index)
+        line.set_x2(priorHighLine, bar_index)
+        line.set_x2(priorLowLine, bar_index)
+        line.set_x2(priorOpenLine, bar_index)
+        line.set_x2(priorCloseLine, bar_index)
+
+    // currentHigh := request.security(syminfo.tickerid, 'D', high, lookahead = barmerge.lookahead_on)
+    // currentLow := request.security(syminfo.tickerid, 'D', low, lookahead = barmerge.lookahead_on)
+    [ch, cl, co] = request.security(syminfo.tickerid, 'D', [high, low, open], lookahead = barmerge.lookahead_on)
+    currentHigh := ch
+    currentLow := cl
+    currentOpen := co
+    if session.isfirstbar_regular
+        // currentOpen := request.security(syminfo.tickerid, 'D', open, lookahead = barmerge.lookahead_on)
+        weekOfYearRegular := weekofyear
+        if levelSetting != 'a' // adjust the old lines if option 'a' is not selected
+            line.set_x1(currentOpenLine, bar_index)
+            line.set_x2(currentOpenLine, bar_index + 1)
+            line.set_y1(currentOpenLine, currentOpen)
+            line.set_y2(currentOpenLine, currentOpen)
+
+            line.set_x1(currentHighLine, bar_index)
+            line.set_x2(currentHighLine, bar_index + 1)
+            line.set_y1(currentHighLine, currentHigh)
+            line.set_y2(currentHighLine, currentHigh)
+
+            line.set_x1(currentLowLine, bar_index)
+            line.set_x2(currentLowLine, bar_index + 1)
+            line.set_y1(currentLowLine, currentLow)
+            line.set_y2(currentLowLine, currentLow)
+        else // option 'a' is selected
+            line.set_extend(currentOpenLine, extend.none) // currentOpen line should only be drawn starting from first regular bar
+            line.set_extend(currentHighLine, extend.none)
+            line.set_extend(currentLowLine, extend.none)
+            if currentOpenLevel // bar_index +1 because there is a glitch where when both x-values are the same, a vertical line ends up forming
+                currentOpenLine := line.new(bar_index, currentOpen, bar_index + 1, currentOpen, color = currentOpenColour, style = currentOpenLineStyle, width = currentOpenLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if currentHighLevel // bar_index +1 because there is a glitch where when both x-values are the same, a vertical line ends up forming
+                currentHighLine := line.new(bar_index, currentHigh, bar_index + 1, currentHigh, color = currentHighColour, style = currentHighLineStyle, width = currentHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if currentLowLevel // bar_index +1 because there is a glitch where when both x-values are the same, a vertical line ends up forming
+                currentLowLine := line.new(bar_index, currentLow, bar_index + 1, currentLow, color = currentLowColour, style = currentLowLineStyle, width = currentLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+    if session.ismarket and not session.isfirstbar_regular
+        line.set_x2(currentOpenLine, bar_index) // currentOpen should not be drawn during premarket
+        line.set_x2(currentHighLine, bar_index)
+        line.set_x2(currentLowLine, bar_index)
+        if currentHigh != currentHigh[1]
+            line.set_y1(currentHighLine, currentHigh) // shift currentHigh in real-time
+            line.set_y2(currentHighLine, currentHigh)
+        if currentLow != currentLow[1]
+            line.set_y1(currentLowLine, currentLow) // shift currentLow in real-time
+            line.set_y2(currentLowLine, currentLow)
+
+    if session.ispostmarket and session.ispostmarket[1] == false // initialize after-hour prices for the day
+        afterHigh := high
+        afterLow := low
+        weekOfYearPost := weekofyear
+        if levelSetting != 'a' // adjust the old lines if option 'a' is not selected
+            line.set_x1(afterHighLine, bar_index)
+            line.set_x2(afterHighLine, bar_index + 1)
+            line.set_y1(afterHighLine, afterHigh)
+            line.set_y2(afterHighLine, afterHigh)
+
+            line.set_x1(afterLowLine, bar_index)
+            line.set_x2(afterLowLine, bar_index + 1)
+            line.set_y1(afterLowLine, afterLow)
+            line.set_y2(afterLowLine, afterLow)
+        else // option 'a' is selected
+            line.set_extend(afterHighLine, extend.none) // afterhourlines should only be drawn starting from first after-hour bar
+            line.set_extend(afterLowLine, extend.none)
+            if afterHighLevel
+                afterHighLine := line.new(bar_index, afterHigh, bar_index + 1, afterHigh, color = afterHighColour, style = afterHighLineStyle, width = afterHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if afterLowLevel
+                afterLowLine := line.new(bar_index, afterLow, bar_index + 1, afterLow, color = afterLowColour, style = afterLowLineStyle, width = afterLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+    else
+        line.set_x2(afterHighLine, bar_index)
+        line.set_x2(afterLowLine, bar_index)
+    if session.ispostmarket and high > afterHigh
+        afterHigh := high
+        line.set_y1(afterHighLine, afterHigh) // shift afterHigh in real-time
+        line.set_y2(afterHighLine, afterHigh)
+    if session.ispostmarket and low < afterLow
+        afterLow := low
+        line.set_y1(afterLowLine, afterLow) // shift afterLow in real-time
+        line.set_y2(afterLowLine, afterLow)
+
+    //weekofyear[1] != weekofyear // does not work for extended session because weekly timeframe prices start during regular market hours
+    // currentWeekHigh := request.security(syminfo.tickerid, 'W', high, lookahead = barmerge.lookahead_on)
+    // currentWeekLow := request.security(syminfo.tickerid, 'W', low, lookahead = barmerge.lookahead_on)
+    [cwh, cwl, cwo] = request.security(syminfo.tickerid, 'W', [high, low, open], lookahead = barmerge.lookahead_on)
+    currentWeekHigh := cwh
+    currentWeekLow := cwl
+    currentWeekOpen := cwo
+    if syminfo.session == session.regular and weekofyear[1] != weekofyear or syminfo.session == session.extended and session.isfirstbar_regular and weekOfYearPost != weekOfYearRegular //first bar of the week
+        // currentWeekOpen := request.security(syminfo.tickerid, 'W', open, lookahead = barmerge.lookahead_on)
+        [pwh, pwl, pwc] = request.security(syminfo.tickerid, 'W', [high[1], low[1], close[1]], lookahead = barmerge.lookahead_on)
+        priorWeekHigh := pwh
+        priorWeekLow := pwl
+        priorWeekClose := pwc
+        // priorWeekHigh := request.security(syminfo.tickerid, 'W', high[1], lookahead = barmerge.lookahead_on)
+        // priorWeekLow := request.security(syminfo.tickerid, 'W', low[1], lookahead = barmerge.lookahead_on)
+        // priorWeekClose := request.security(syminfo.tickerid, 'W', close[1], lookahead = barmerge.lookahead_on)
+        if levelSetting != 'a' // adjust the old lines if option 'a' is not selected
+            line.set_x1(currentWeekHighLine, bar_index)
+            line.set_x2(currentWeekHighLine, bar_index + 1)
+            line.set_y1(currentWeekHighLine, currentWeekHigh)
+            line.set_y2(currentWeekHighLine, currentWeekHigh)
+
+            line.set_x1(currentWeekLowLine, bar_index)
+            line.set_x2(currentWeekLowLine, bar_index + 1)
+            line.set_y1(currentWeekLowLine, currentWeekLow)
+            line.set_y2(currentWeekLowLine, currentWeekLow)
+
+            line.set_x1(currentWeekOpenLine, bar_index)
+            line.set_x2(currentWeekOpenLine, bar_index + 1)
+            line.set_y1(currentWeekOpenLine, currentWeekOpen)
+            line.set_y2(currentWeekOpenLine, currentWeekOpen)
+
+            line.set_x1(priorWeekHighLine, bar_index)
+            line.set_x2(priorWeekHighLine, bar_index + 1)
+            line.set_y1(priorWeekHighLine, priorWeekHigh)
+            line.set_y2(priorWeekHighLine, priorWeekHigh)
+
+            line.set_x1(priorWeekLowLine, bar_index)
+            line.set_x2(priorWeekLowLine, bar_index + 1)
+            line.set_y1(priorWeekLowLine, priorWeekLow)
+            line.set_y2(priorWeekLowLine, priorWeekLow)
+
+            line.set_x1(priorWeekCloseLine, bar_index)
+            line.set_x2(priorWeekCloseLine, bar_index + 1)
+            line.set_y1(priorWeekCloseLine, priorWeekClose)
+            line.set_y2(priorWeekCloseLine, priorWeekClose)
+        else // option 'a' is selected
+            line.set_extend(currentWeekHighLine, extend.none)
+            line.set_extend(currentWeekLowLine, extend.none)
+            line.set_extend(currentWeekOpenLine, extend.none)
+            line.set_extend(priorWeekHighLine, extend.none)
+            line.set_extend(priorWeekLowLine, extend.none)
+            line.set_extend(priorWeekCloseLine, extend.none)
+            if currentWeekHighLevel
+                currentWeekHighLine := line.new(bar_index, currentWeekHigh, bar_index + 1, currentWeekHigh, color = currentWeekHighColour, style = currentWeekHighLineStyle, width = currentWeekHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if currentWeekLowLevel
+                currentWeekLowLine := line.new(bar_index, currentWeekLow, bar_index + 1, currentWeekLow, color = currentWeekLowColour, style = currentWeekLowLineStyle, width = currentWeekLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if priorWeekHighLevel
+                priorWeekHighLine := line.new(bar_index, priorWeekHigh, bar_index + 1, priorWeekHigh, color = priorWeekHighColour, style = priorWeekHighLineStyle, width = priorWeekHighLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if priorWeekLowLevel
+                priorWeekLowLine := line.new(bar_index, priorWeekLow, bar_index + 1, priorWeekLow, color = priorWeekLowColour, style = priorWeekLowLineStyle, width = priorWeekLowLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if currentWeekOpenLevel
+                currentWeekOpenLine := line.new(bar_index, currentWeekOpen, bar_index + 1, currentWeekOpen, color = currentWeekOpenColour, style = currentWeekOpenLineStyle, width = currentWeekOpenLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+            if priorWeekCloseLevel
+                priorWeekCloseLine := line.new(bar_index, priorWeekClose, bar_index + 1, priorWeekClose, color = priorWeekCloseColour, style = priorWeekCloseLineStyle, width = priorWeekCloseLineWidth, extend = levelSetting == 'c' ? extend.both : extend.right)
+    else
+        line.set_x2(currentWeekHighLine, bar_index)
+        line.set_x2(currentWeekLowLine, bar_index)
+        line.set_x2(priorWeekHighLine, bar_index)
+        line.set_x2(priorWeekLowLine, bar_index)
+        line.set_x2(currentWeekOpenLine, bar_index)
+        line.set_x2(priorWeekCloseLine, bar_index)
+        if currentWeekHigh != currentWeekHigh[1]
+            line.set_y1(currentWeekHighLine, currentWeekHigh) // shift currentWeekHigh in real-time
+            line.set_y2(currentWeekHighLine, currentWeekHigh)
+        if currentWeekLow != currentWeekLow[1]
+            line.set_y1(currentWeekLowLine, currentWeekLow) // shift currentWeekLow in real-time
+            line.set_y2(currentWeekLowLine, currentWeekLow)
+
+    if LabelBool
+        pmHighLabelBool = input.bool(true, title = 'Pre-market high', group = 'Label', inline = 'pmHigh')
+        pmLowLabelBool = input.bool(true, title = 'Pre-market low', group = 'Label', inline = 'pmLow')
+        priorHighLabelBool = input.bool(true, title = 'Prior day high', group = 'Label', inline = 'priorHigh')
+        priorLowLabelBool = input.bool(true, title = 'Prior day low', group = 'Label', inline = 'priorLow')
+        priorOpenLabelBool = input.bool(false, title = 'Prior day open', group = 'Label', inline = 'priorOpen')
+        priorCloseLabelBool = input.bool(false, title = 'Prior day close', group = 'Label', inline = 'priorClose')
+        currentOpenLabelBool = input.bool(false, title = 'Current open', group = 'Label', inline = 'currentOpen')
+        currentHighLabelBool = input.bool(true, title = 'Current high', group = 'Label', inline = 'currentHigh')
+        currentLowLabelBool = input.bool(true, title = 'Current low', group = 'Label', inline = 'currentLow')
+        afterHighLabelBool = input.bool(false, title = 'After-hour high', group = 'Label', inline = 'afterHigh')
+        afterLowLabelBool = input.bool(false, title = 'After-hour Low', group = 'Label', inline = 'afterLow')
+        priorWeekHighLabelBool = input.bool(true, title = 'Prior week high', group = 'Label', inline = 'priorWeekHigh')
+        priorWeekLowLabelBool = input.bool(true, title = 'Prior week low', group = 'Label', inline = 'priorWeekLow')
+        currentWeekHighLabelBool = input.bool(true, title = 'Current week high', group = 'Label', inline = 'currentWeekHigh')
+        currentWeekLowLabelBool = input.bool(true, title = 'Current week low', group = 'Label', inline = 'currentWeekLow')
+        currentWeekOpenLabelBool = input.bool(false, title = 'Current week open', group = 'Label', inline = 'currentWeekOpen')
+        priorWeekCloseLabelBool = input.bool(false, title = 'Prior week close', group = 'Label', inline = 'priorWeekClose')
+
+        pmHighLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'pmHigh')
+        pmLowLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'pmLow')
+        priorHighLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'priorHigh')
+        priorLowLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'priorLow')
+        priorOpenLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'priorOpen')
+        priorCloseLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'priorClose')
+        currentOpenLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'currentOpen')
+        currentHighLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'currentHigh')
+        currentLowLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'currentLow')
+        afterHighLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'afterHigh')
+        afterLowLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'afterLow')
+        priorWeekHighLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'priorWeekHigh')
+        priorWeekLowLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'priorWeekLow')
+        currentWeekHighLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'currentWeekHigh')
+        currentWeekLowLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'currentWeekLow')
+        currentWeekOpenLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'currentWeekOpen')
+        priorWeekCloseLabelPriceBool = input.bool(true, title = 'Display price in label', group = 'Label', inline = 'priorWeekClose')
+
+        pmHighLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'pmHigh', display = display.none)
+        pmLowLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'pmLow', display = display.none)
+        priorHighLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'priorHigh', display = display.none)
+        priorLowLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'priorLow', display = display.none)
+        priorOpenLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'priorOpen', display = display.none)
+        priorCloseLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'priorClose', display = display.none)
+        currentOpenLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'currentOpen', display = display.none)
+        currentHighLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'currentHigh', display = display.none)
+        currentLowLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'currentLow', display = display.none)
+        afterHighLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'afterHigh', display = display.none)
+        afterLowLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'afterLow', display = display.none)
+        priorWeekHighLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'priorWeekHigh', display = display.none)
+        priorWeekLowLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'priorWeekLow', display = display.none)
+        currentWeekHighLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'currentWeekHigh', display = display.none)
+        currentWeekLowLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'currentWeekLow', display = display.none)
+        currentWeekOpenLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'currentWeekOpen', display = display.none)
+        priorWeekCloseLabelAlignOption = input.string('align left', title = '', options = ['align left', 'align center', 'align right'], group = 'Label', inline = 'priorWeekClose', display = display.none)
+
+        pmHighLabelAlign = pmHighLabelAlignOption == 'align left' ? text.align_left : pmHighLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        pmLowLabelAlign = pmLowLabelAlignOption == 'align left' ? text.align_left : pmLowLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        priorHighLabelAlign = priorHighLabelAlignOption == 'align left' ? text.align_left : priorHighLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        priorLowLabelAlign = priorLowLabelAlignOption == 'align left' ? text.align_left : priorLowLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        priorOpenLabelAlign = priorOpenLabelAlignOption == 'align left' ? text.align_left : priorOpenLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        priorCloseLabelAlign = priorCloseLabelAlignOption == 'align left' ? text.align_left : priorCloseLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        currentOpenLabelAlign = currentOpenLabelAlignOption == 'align left' ? text.align_left : currentOpenLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        currentHighLabelAlign = currentHighLabelAlignOption == 'align left' ? text.align_left : currentHighLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        currentLowLabelAlign = currentLowLabelAlignOption == 'align left' ? text.align_left : currentLowLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        afterHighLabelAlign = afterHighLabelAlignOption == 'align left' ? text.align_left : afterHighLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        afterLowLabelAlign = afterLowLabelAlignOption == 'align left' ? text.align_left : afterLowLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        priorWeekHighLabelAlign = priorWeekHighLabelAlignOption == 'align left' ? text.align_left : priorWeekHighLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        priorWeekLowLabelAlign = priorWeekLowLabelAlignOption == 'align left' ? text.align_left : priorWeekLowLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        currentWeekHighLabelAlign = currentWeekHighLabelAlignOption == 'align left' ? text.align_left : currentWeekHighLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        currentWeekLowLabelAlign = currentWeekLowLabelAlignOption == 'align left' ? text.align_left : currentWeekLowLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        currentWeekOpenLabelAlign = currentWeekOpenLabelAlignOption == 'align left' ? text.align_left : currentWeekOpenLabelAlignOption == 'align center' ? text.align_center : text.align_right
+        priorWeekCloseLabelAlign = priorWeekCloseLabelAlignOption == 'align left' ? text.align_left : priorWeekCloseLabelAlignOption == 'align center' ? text.align_center : text.align_right
+
+        pmHighLabelText = input.string('PM high ', title = 'Text', group = 'Label', inline = 'pmHigh', display = display.none)
+        pmLowLabelText = input.string('PM low ', title = 'Text', group = 'Label', inline = 'pmLow', display = display.none)
+        priorHighLabelText = input.string('Prior day high ', title = 'Text', group = 'Label', inline = 'priorHigh', display = display.none)
+        priorLowLabelText = input.string('Prior day low ', title = 'Text', group = 'Label', inline = 'priorLow', display = display.none)
+        priorOpenLabelText = input.string('Prior day open ', title = 'Text', group = 'Label', inline = 'priorOpen', display = display.none)
+        priorCloseLabelText = input.string('Prior day close ', title = 'Text', group = 'Label', inline = 'priorClose', display = display.none)
+        currentOpenLabelText = input.string('Open ', title = 'Text', group = 'Label', inline = 'currentOpen', display = display.none)
+        currentHighLabelText = input.string('High ', title = 'Text', group = 'Label', inline = 'currentHigh', display = display.none)
+        currentLowLabelText = input.string('Low ', title = 'Text', group = 'Label', inline = 'currentLow', display = display.none)
+        afterHighLabelText = input.string('AM high ', title = 'Text', group = 'Label', inline = 'afterHigh', display = display.none)
+        afterLowLabelText = input.string('AM low ', title = 'Text', group = 'Label', inline = 'afterLow', display = display.none)
+        priorWeekHighLabelText = input.string('Prior week high ', title = 'Text', group = 'Label', inline = 'priorWeekHigh', display = display.none)
+        priorWeekLowLabelText = input.string('Prior week low ', title = 'Text', group = 'Label', inline = 'priorWeekLow', display = display.none)
+        currentWeekHighLabelText = input.string('Week high ', title = 'Text', group = 'Label', inline = 'currentWeekHigh', display = display.none)
+        currentWeekLowLabelText = input.string('Week low ', title = 'Text', group = 'Label', inline = 'currentWeekLow', display = display.none)
+        currentWeekOpenLabelText = input.string('Week open ', title = 'Text', group = 'Label', inline = 'currentWeekOpen', display = display.none)
+        priorWeekCloseLabelText = input.string('Prior week close ', title = 'Text', group = 'Label', inline = 'priorWeekClose', display = display.none)
+
+        pmHighLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'pmHigh')
+        pmLowLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'pmLow')
+        priorHighLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'priorHigh')
+        priorLowLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'priorLow')
+        priorOpenLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'priorOpen')
+        priorCloseLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'priorClose')
+        currentOpenLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'currentOpen')
+        currentHighLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'currentHigh')
+        currentLowLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'currentLow')
+        afterHighLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'afterHigh')
+        afterLowLabelTextColour = input(title = '', defval = #ffffff, group = 'Label', inline = 'afterLow')
+        priorWeekHighLabelTextColour = input(title = '', defval = #ffffff, group = 'Label', inline = 'priorWeekHigh')
+        priorWeekLowLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'priorWeekLow')
+        currentWeekHighLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'currentWeekHigh')
+        currentWeekLowLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'currentWeekLow')
+        currentWeekOpenLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'currentWeekOpen')
+        priorWeekCloseLabelTextColour = input(title = '', defval = #000000, group = 'Label', inline = 'priorWeekClose')
+
+        pmHighLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'pmHigh')
+        pmLowLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'pmLow')
+        priorHighLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'priorHigh')
+        priorLowLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'priorLow')
+        priorOpenLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'priorOpen')
+        priorCloseLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'priorClose')
+        currentOpenLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'currentOpen')
+        currentHighLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'currentHigh')
+        currentLowLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'currentLow')
+        afterHighLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'afterHigh')
+        afterLowLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'afterLow')
+        priorWeekHighLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'priorWeekHigh')
+        priorWeekLowLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'priorWeekLow')
+        currentWeekHighLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'currentWeekHigh')
+        currentWeekLowLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'currentWeekLow')
+        currentWeekOpenLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'currentWeekOpen')
+        priorWeekCloseLabelTextSize = input.int(12, title = '', minval = 1, group = 'Label', display = display.none, inline = 'priorWeekClose')
+
+        pmHighOffset = input.int(1, title = 'Bar offset', group = 'Label', display = display.none, inline = 'pmHigh')
+        pmLowOffset = input.int(1, title = 'Bar offset', group = 'Label', display = display.none, inline = 'pmLow')
+        priorHighOffset = input.int(1, title = 'Bar offset', group = 'Label', display = display.none, inline = 'priorHigh')
+        priorLowOffset = input.int(1, title = 'Bar offset', group = 'Label', display = display.none, inline = 'priorLow')
+        priorOpenOffset = input.int(1, title = 'Bar offset', group = 'Label', display = display.none, inline = 'priorOpen')
+        priorCloseOffset = input.int(1, title = 'Bar offset', group = 'Label', display = display.none, inline = 'priorClose')
+        currentOpenOffset = input.int(20, title = 'Bar offset', group = 'Label', display = display.none, inline = 'currentOpen')
+        currentHighOffset = input.int(10, title = 'Bar offset', group = 'Label', display = display.none, inline = 'currentHigh')
+        currentLowOffset = input.int(10, title = 'Bar offset', group = 'Label', display = display.none, inline = 'currentLow')
+        afterHighOffset = input.int(10, title = 'Bar offset', group = 'Label', display = display.none, inline = 'afterHigh')
+        afterLowOffset = input.int(30, title = 'Bar offset', group = 'Label', display = display.none, inline = 'afterLow')
+        priorWeekHighOffset = input.int(20, title = 'Bar offset', group = 'Label', display = display.none, inline = 'priorWeekHigh')
+        priorWeekLowOffset = input.int(30, title = 'Bar offset', group = 'Label', display = display.none, inline = 'priorWeekLow')
+        currentWeekHighOffset = input.int(20, title = 'Bar offset', group = 'Label', display = display.none, inline = 'currentWeekHigh')
+        currentWeekLowOffset = input.int(20, title = 'Bar offset', group = 'Label', display = display.none, inline = 'currentWeekLow')
+        currentWeekOpenOffset = input.int(20, title = 'Bar offset', group = 'Label', display = display.none, inline = 'currentWeekOpen')
+        priorWeekCloseOffset = input.int(20, title = 'Bar offset', group = 'Label', display = display.none, inline = 'priorWeekClose')
+
+        var label pmHighLabel = na
+        var label pmLowLabel = na
+        var label priorHighLabel = na
+        var label priorLowLabel = na
+        var label priorOpenLabel = na
+        var label priorCloseLabel = na
+        var label currentOpenLabel = na
+        var label currentHighLabel = na
+        var label currentLowLabel = na
+        var label afterHighLabel = na
+        var label afterLowLabel = na
+        var label priorWeekHighLabel = na
+        var label priorWeekLowLabel = na
+        var label currentWeekHighLabel = na
+        var label currentWeekLowLabel = na
+        var label currentWeekOpenLabel = na
+        var label priorWeekCloseLabel = na
+
+        if bar_index == 0
+            if syminfo.session == session.extended
+                if pmHighLabelBool
+                    pmHighLabel := label.new(bar_index + pmHighOffset, pmHigh, text = pmHighLabelPriceBool ? pmHighLabelText + str.tostring(pmHigh, format.mintick) : pmHighLabelText, color = pmHighColour, style = label.style_label_left, textcolor = pmHighLabelTextColour, size = pmHighLabelTextSize, textalign = pmHighLabelAlign)
+                if pmLowLabelBool
+                    pmLowLabel := label.new(bar_index + pmLowOffset, pmLow, text = pmLowLabelPriceBool ? pmLowLabelText + str.tostring(pmLow, format.mintick) : pmLowLabelText, color = pmLowColour, style = label.style_label_left, textcolor = pmLowLabelTextColour, size = pmLowLabelTextSize, textalign = pmLowLabelAlign)
+                if afterHighLabelBool
+                    afterHighLabel := label.new(bar_index + afterHighOffset, afterHigh, text = afterHighLabelPriceBool ? afterHighLabelText + str.tostring(afterHigh, format.mintick) : afterHighLabelText, color = afterHighColour, style = label.style_label_left, textcolor = afterHighLabelTextColour, size = afterHighLabelTextSize, textalign = afterHighLabelAlign)
+                if afterLowLabelBool
+                    afterLowLabel := label.new(bar_index + afterLowOffset, afterLow, text = afterLowLabelPriceBool ? afterLowLabelText + str.tostring(afterLow, format.mintick) : afterLowLabelText, color = afterLowColour, style = label.style_label_left, textcolor = afterLowLabelTextColour, size = afterLowLabelTextSize, textalign = afterLowLabelAlign)
+            if priorHighLabelBool
+                priorHighLabel := label.new(bar_index + priorHighOffset, priorHigh, text = priorHighLabelPriceBool ? priorHighLabelText + str.tostring(priorHigh, format.mintick) : priorHighLabelText, color = priorHighColour, style = label.style_label_left, textcolor = priorHighLabelTextColour, size = priorHighLabelTextSize, textalign = priorHighLabelAlign)
+            if priorLowLabelBool
+                priorLowLabel := label.new(bar_index + priorLowOffset, priorLow, text = priorLowLabelPriceBool ? priorLowLabelText + str.tostring(priorLow, format.mintick) : priorLowLabelText, color = priorLowColour, style = label.style_label_left, textcolor = priorLowLabelTextColour, size = priorLowLabelTextSize, textalign = priorLowLabelAlign)
+            if priorOpenLabelBool
+                priorOpenLabel := label.new(bar_index + priorOpenOffset, priorOpen, text = priorOpenLabelPriceBool ? priorOpenLabelText + str.tostring(priorOpen, format.mintick) : priorOpenLabelText, color = priorOpenColour, style = label.style_label_left, textcolor = priorOpenLabelTextColour, size = priorOpenLabelTextSize, textalign = priorOpenLabelAlign)
+            if priorCloseLabelBool
+                priorCloseLabel := label.new(bar_index + priorCloseOffset, priorClose, text = priorCloseLabelPriceBool ? priorCloseLabelText + str.tostring(priorClose, format.mintick) : priorCloseLabelText, color = priorCloseColour, style = label.style_label_left, textcolor = priorCloseLabelTextColour, size = priorCloseLabelTextSize, textalign = priorCloseLabelAlign)
+            if currentOpenLabelBool
+                currentOpenLabel := label.new(bar_index + currentOpenOffset, currentOpen, text = currentOpenLabelPriceBool ? currentOpenLabelText + str.tostring(currentOpen, format.mintick) : currentOpenLabelText, color = currentOpenColour, style = label.style_label_left, textcolor = currentOpenLabelTextColour, size = currentOpenLabelTextSize, textalign = currentOpenLabelAlign)
+            if currentHighLabelBool
+                currentHighLabel := label.new(bar_index + currentHighOffset, currentHigh, text = currentHighLabelPriceBool ? currentHighLabelText + str.tostring(currentHigh, format.mintick) : currentHighLabelText, color = currentHighColour, style = label.style_label_left, textcolor = currentHighLabelTextColour, size = currentHighLabelTextSize, textalign = currentHighLabelAlign)
+            if currentLowLabelBool
+                currentLowLabel := label.new(bar_index + currentLowOffset, currentLow, text = currentLowLabelPriceBool ? currentLowLabelText + str.tostring(currentLow, format.mintick) : currentLowLabelText, color = currentLowColour, style = label.style_label_left, textcolor = currentLowLabelTextColour, size = currentLowLabelTextSize, textalign = currentLowLabelAlign)
+            if currentWeekHighLabelBool
+                currentWeekHighLabel := label.new(bar_index + currentWeekHighOffset, currentWeekHigh, text = currentWeekHighLabelPriceBool ? currentWeekHighLabelText + str.tostring(currentWeekHigh, format.mintick) : currentWeekHighLabelText, color = currentWeekHighColour, style = label.style_label_left, textcolor = currentWeekHighLabelTextColour, size = currentWeekHighLabelTextSize, textalign = currentWeekHighLabelAlign)
+            if currentWeekLowLabelBool
+                currentWeekLowLabel := label.new(bar_index + currentWeekLowOffset, currentWeekLow, text = currentWeekLowLabelPriceBool ? currentWeekLowLabelText + str.tostring(currentWeekLow, format.mintick) : currentWeekLowLabelText, color = currentWeekLowColour, style = label.style_label_left, textcolor = currentWeekLowLabelTextColour, size = currentWeekLowLabelTextSize, textalign = currentWeekLowLabelAlign)
+            if priorWeekHighLabelBool
+                priorWeekHighLabel := label.new(bar_index + priorWeekHighOffset, priorWeekHigh, text = priorWeekHighLabelPriceBool ? priorWeekHighLabelText + str.tostring(priorWeekHigh, format.mintick) : priorWeekHighLabelText, color = priorWeekHighColour, style = label.style_label_left, textcolor = priorWeekHighLabelTextColour, size = priorWeekHighLabelTextSize, textalign = priorWeekHighLabelAlign)
+            if priorWeekLowLabelBool
+                priorWeekLowLabel := label.new(bar_index + priorWeekLowOffset, priorWeekLow, text = priorWeekLowLabelPriceBool ? priorWeekLowLabelText + str.tostring(priorWeekLow, format.mintick) : priorWeekLowLabelText, color = priorWeekLowColour, style = label.style_label_left, textcolor = priorWeekLowLabelTextColour, size = priorWeekLowLabelTextSize, textalign = priorWeekLowLabelAlign)
+            if currentWeekOpenLabelBool
+                currentWeekOpenLabel := label.new(bar_index + currentWeekOpenOffset, currentWeekOpen, text = currentWeekOpenLabelPriceBool ? currentWeekOpenLabelText + str.tostring(currentWeekOpen, format.mintick) : currentWeekOpenLabelText, color = currentWeekOpenColour, style = label.style_label_left, textcolor = currentWeekOpenLabelTextColour, size = currentWeekOpenLabelTextSize, textalign = currentWeekOpenLabelAlign)
+            if priorWeekCloseLabelBool
+                priorWeekCloseLabel := label.new(bar_index + priorWeekCloseOffset, priorWeekClose, text = priorWeekCloseLabelPriceBool ? priorWeekCloseLabelText + str.tostring(priorWeekClose, format.mintick) : priorWeekCloseLabelText, color = priorWeekCloseColour, style = label.style_label_left, textcolor = priorWeekCloseLabelTextColour, size = priorWeekCloseLabelTextSize, textalign = priorWeekCloseLabelAlign)
+
+        if session.ispremarket and pmHigh != pmHigh[1]
+            label.set_y(pmHighLabel, pmHigh)
+            if pmHighLabelPriceBool
+                label.set_text(pmHighLabel, pmHighLabelText + str.tostring(pmHigh, format.mintick))
+        if session.ispremarket and pmLow != pmLow[1]
+            label.set_y(pmLowLabel, pmLow)
+            if pmLowLabelPriceBool
+                label.set_text(pmLowLabel, pmLowLabelText + str.tostring(pmLow, format.mintick))
+
+        if session.isfirstbar
+            // label.set_y(pmHighLabel, pmHigh)
+            // label.set_text(pmHighLabel, pmHighLabelText + str.tostring(pmHigh, format.mintick))
+            // label.set_y(pmLowLabel, pmLow)
+            // label.set_text(pmLowLabel, pmLowLabelText + str.tostring(pmLow, format.mintick))
+            label.set_y(priorHighLabel, priorHigh)
+            if priorHighLabelPriceBool
+                label.set_text(priorHighLabel, priorHighLabelText + str.tostring(priorHigh, format.mintick))
+            label.set_y(priorLowLabel, priorLow)
+            if priorLowLabelPriceBool
+                label.set_text(priorLowLabel, priorLowLabelText + str.tostring(priorLow, format.mintick))
+            label.set_y(priorOpenLabel, priorOpen)
+            if priorOpenLabelPriceBool
+                label.set_text(priorOpenLabel, priorOpenLabelText + str.tostring(priorOpen, format.mintick))
+            label.set_y(priorCloseLabel, priorClose)
+            if priorCloseLabelPriceBool
+                label.set_text(priorCloseLabel, priorCloseLabelText + str.tostring(priorClose, format.mintick))
+
+        if session.isfirstbar_regular
+            label.set_y(currentOpenLabel, currentOpen)
+            if currentOpenLabelPriceBool
+                label.set_text(currentOpenLabel, currentOpenLabelText + str.tostring(currentOpen, format.mintick))
+            // label.set_y(currentHighLabel, currentHigh)
+            // label.set_text(currentHighLabel, currentHighLabelText + str.tostring(currentHigh, format.mintick))
+            // label.set_y(currentLowLabel, currentLow)
+            // label.set_text(currentLowLabel, currentLowLabelText + str.tostring(currentLow, format.mintick))
+        if session.ismarket //and not session.isfirstbar_regular
+            if currentHigh != currentHigh[1]
+                label.set_y(currentHighLabel, currentHigh)
+                if currentHighLabelPriceBool
+                    label.set_text(currentHighLabel, currentHighLabelText + str.tostring(currentHigh, format.mintick))
+            if currentLow != currentLow[1]
+                label.set_y(currentLowLabel, currentLow)
+                if currentLowLabelPriceBool
+                    label.set_text(currentLowLabel, currentLowLabelText + str.tostring(currentLow, format.mintick))
+
+        // if session.ispostmarket and session.ispostmarket[1] == false
+        //     label.set_y(afterHighLabel, afterHigh)
+        //     label.set_text(afterHighLabel, afterHighLabelText + str.tostring(afterHigh, format.mintick))
+        //     label.set_y(afterLowLabel, afterLow)
+        //     label.set_text(afterLowLabel, afterLowLabelText + str.tostring(afterLow, format.mintick))
+        if session.ispostmarket and afterHigh != afterHigh[1]
+            label.set_y(afterHighLabel, afterHigh)
+            if afterHighLabelPriceBool
+                label.set_text(afterHighLabel, afterHighLabelText + str.tostring(afterHigh, format.mintick))
+        if session.ispostmarket and afterLow != afterLow[1]
+            label.set_y(afterLowLabel, afterLow)
+            if afterLowLabelPriceBool
+                label.set_text(afterLowLabel, afterLowLabelText + str.tostring(afterLow, format.mintick))
+
+        if syminfo.session == session.regular and weekofyear[1] != weekofyear or syminfo.session == session.extended and session.isfirstbar_regular and weekOfYearPost != weekOfYearRegular //first bar of the week
+            // label.set_y(currentWeekHighLabel, currentWeekHigh)
+            // label.set_text(currentWeekHighLabel, currentWeekHighLabelText + str.tostring(currentWeekHigh, format.mintick))
+            // label.set_y(currentWeekLowLabel, currentWeekLow)
+            // label.set_text(currentWeekLowLabel, currentWeekLowLabelText + str.tostring(currentWeekLow, format.mintick))
+            label.set_y(priorWeekHighLabel, priorWeekHigh)
+            if priorWeekHighLabelPriceBool
+                label.set_text(priorWeekHighLabel, priorWeekHighLabelText + str.tostring(priorWeekHigh, format.mintick))
+            label.set_y(priorWeekLowLabel, priorWeekLow)
+            if priorWeekLowLabelPriceBool
+                label.set_text(priorWeekLowLabel, priorWeekLowLabelText + str.tostring(priorWeekLow, format.mintick))
+            label.set_y(currentWeekOpenLabel, currentWeekOpen)
+            if currentWeekOpenLabelPriceBool
+                label.set_text(currentWeekOpenLabel, currentWeekOpenLabelText + str.tostring(currentWeekOpen, format.mintick))
+            label.set_y(priorWeekCloseLabel, priorWeekClose)
+            if priorWeekCloseLabelPriceBool
+                label.set_text(priorWeekCloseLabel, priorWeekCloseLabelText + str.tostring(priorWeekClose, format.mintick))
+        // else
+        if currentWeekHigh != currentWeekHigh[1]
+            label.set_y(currentWeekHighLabel, currentWeekHigh)
+            if currentWeekHighLabelPriceBool
+                label.set_text(currentWeekHighLabel, currentWeekHighLabelText + str.tostring(currentWeekHigh, format.mintick))
+        if currentWeekLow != currentWeekLow[1]
+            label.set_y(currentWeekLowLabel, currentWeekLow)
+            if currentWeekLowLabelPriceBool
+                label.set_text(currentWeekLowLabel, currentWeekLowLabelText + str.tostring(currentWeekLow, format.mintick))
+
+        label.set_x(pmHighLabel, bar_index + pmHighOffset)
+        label.set_x(pmLowLabel, bar_index + pmLowOffset)
+        label.set_x(priorHighLabel, bar_index + priorHighOffset)
+        label.set_x(priorLowLabel, bar_index + priorLowOffset)
+        label.set_x(priorOpenLabel, bar_index + priorOpenOffset)
+        label.set_x(priorCloseLabel, bar_index + priorCloseOffset)
+        label.set_x(currentOpenLabel, bar_index + currentOpenOffset)
+        label.set_x(currentHighLabel, bar_index + currentHighOffset)
+        label.set_x(currentLowLabel, bar_index + currentLowOffset)
+        label.set_x(afterHighLabel, bar_index + afterHighOffset)
+        label.set_x(afterLowLabel, bar_index + afterLowOffset)
+        label.set_x(priorWeekHighLabel, bar_index + priorWeekHighOffset)
+        label.set_x(priorWeekLowLabel, bar_index + priorWeekLowOffset)
+        label.set_x(currentWeekHighLabel, bar_index + currentWeekHighOffset)
+        label.set_x(currentWeekLowLabel, bar_index + currentWeekLowOffset)
+        label.set_x(currentWeekOpenLabel, bar_index + currentWeekOpenOffset)
+        label.set_x(priorWeekCloseLabel, bar_index + priorWeekCloseOffset)
+        label.set_x(ATHLabel, bar_index + ATHOffset)
+
+plot(timeframe.isintraday and pmHighPrice and timeframePlot ? pmHigh : na, title = 'PM high', color = pmHighColour, editable = false, display = display.price_scale) // plot the value on price axis without the line
+plot(timeframe.isintraday and pmLowPrice and timeframePlot ? pmLow : na, title = 'PM low', color = pmLowColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and priorHighPrice and timeframePlot ? priorHigh : na, title = 'Prior day high', color = priorHighColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and priorLowPrice and timeframePlot ? priorLow : na, title = 'Prior day low', color = priorLowColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and priorOpenPrice and timeframePlot ? priorOpen : na, title = 'Prior day open', color = priorOpenColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and priorClosePrice and timeframePlot ? priorClose : na, title = 'Prior day close', color = priorCloseColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and currentOpenPrice and timeframePlot ? currentOpen : na, title = 'Open', color = currentOpenColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and currentHighPrice and timeframePlot ? currentHigh : na, title = 'High', color = currentHighColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and currentLowPrice and timeframePlot ? currentLow : na, title = 'Low', color = currentLowColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and afterHighPrice and timeframePlot ? afterHigh : na, title = 'AM high', color = afterHighColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and afterLowPrice and timeframePlot ? afterLow : na, title = 'AM low', color = afterLowColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and priorWeekHighPrice and timeframePlot ? priorWeekHigh : na, title = 'Prior week high', color = priorWeekHighColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and priorWeekLowPrice and timeframePlot ? priorWeekLow : na, title = 'Prior week low', color = priorWeekLowColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and currentWeekHighPrice and timeframePlot ? currentWeekHigh : na, title = 'Week high', color = currentWeekHighColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and currentWeekLowPrice and timeframePlot ? currentWeekLow : na, title = 'Week low', color = currentWeekLowColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and priorWeekClosePrice and timeframePlot ? priorWeekClose : na, title = 'Prior week close', color = priorWeekCloseColour, editable = false, display = display.price_scale)
+plot(timeframe.isintraday and currentWeekOpenPrice and timeframePlot ? currentWeekOpen : na, title = 'Week open', color = currentWeekOpenColour, editable = false, display = display.price_scale)
+
+// plotshape(timeframe.isintraday and afterLowLabelBool and timeframePlot ? afterLow : na, style=shape.labeldown, location=location.absolute, color=afterLowColour, offset=6, text="afterLow", textcolor=#ffffff, editable=false, show_last=1, display=display.pane)
+// label.new(bar_index, pmHigh, text=str.tostring(pmHigh))
+// plot(pmHigh, style=plot.style_linebr, color=#81c583, linewidth=1) 
+// plot(pmLow, style=plot.style_linebr, color=#ee9899, linewidth=1) 
+// plot(high, style=plot.style_linebr, color=#ffff00, linewidth=1)
+// plot(priorLow, style=plot.style_linebr, color=#ff0000, linewidth=1)
+
+// noPeriodBool = input.bool(false, title = 'No alert period', group = 'No alert period', inline = 'period', tooltip = 'Time period where alerts will not be triggered')
+// noPeriod = input.session('0930-0935', title = '', group = 'No alert period', inline = 'period', display = display.none)
+// t = time(timeframe.period, noPeriod)
+// alertbool = not(noPeriodBool and bool(t))
+
+// alertcondition(alertbool and session.ismarket and close >= pmHigh and close[1] < pmHigh, title = 'Cross abv pm high (do not use Once Per Bar Close)', message = 'Price crossed above pre-market high!')
+// alertcondition(alertbool and session.ismarket and close <= pmLow and close[1] > pmLow, title = 'Cross blw pm low (do not use Once Per Bar Close)', message = 'Price crossed below pre-market low!')
+
+// alertcondition(alertbool and session.ismarket and close >= pmHigh and open < pmHigh, title = 'Close abv pm high (use Once Per Bar Close)', message = 'Price closed above pre-market high!')
+// alertcondition(alertbool and session.ismarket and close <= pmLow and open > pmLow, title = 'Close blw pm low (use Once Per Bar Close)', message = 'Price closed below pre-market low!')
