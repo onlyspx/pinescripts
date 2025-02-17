@@ -19,11 +19,11 @@ var DEFAULT_COLOR3      = color.new(#6d9eeb, 0)  // Deep Blue - 200 SMA
 var DEFAULT_COLOR4      = color.new(#3c78d8, 0)  // Dark Blue - 200 EMA
 
 // Hourly MAs colors (Yellow/Orange)
-var DEFAULT_COLOR5      = color.new(#FFFF00, 0)  // Bright Yellow - Fast MA (20 EMA)
+var DEFAULT_COLOR5      = color.new(#FFFF00, 0)  // Bright Yellow - Fast MA (21 EMA)
 var DEFAULT_COLOR6      = color.new(#FF8C00, 0)  // Deep Orange - Slow MA (200 SMA)
 
 // Daily MAs colors (Red Theme)
-var DEFAULT_COLOR7      = color.new(#FF0000, 0)  // Bright Red - Fast MA (20 EMA)
+var DEFAULT_COLOR7      = color.new(#FF0000, 0)  // Bright Red - Fast MA (21 EMA)
 var DEFAULT_COLOR8      = color.new(#DC143C, 0)  // Crimson - Slow MA (200 SMA)
 
 // VWAP color
@@ -42,9 +42,9 @@ g1 = "#1"
 g2 = "#2"
 g3 = "#3"
 g4 = "#4"
-g5 = "Hourly 20 EMA"
+g5 = "Hourly 21 EMA"
 g6 = "Hourly 200 SMA"
-g7 = "Daily 20 EMA"
+g7 = "Daily 21 EMA"
 g8 = "Daily 200 SMA"
 g9 = "Preferences"
 
@@ -85,7 +85,7 @@ i_timeframe4    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,  
 
 // Hourly MAs
 i_type_5        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g5)
-i_length5       = input.int         (20,    "Length", 1,                                            group=g5)
+i_length5       = input.int         (21,    "Length", 1,                                            group=g5)
 i_source5       = input             (close, "Source",                                               group=g5)
 i_offset5       = input.int         (0,     "Offset",                                               group=g5)
 i_timeframe5    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g5)
@@ -98,7 +98,7 @@ i_timeframe6    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,  
 
 // Daily MAs
 i_type_7        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g7)
-i_length7       = input.int         (20,    "Length", 1,                                            group=g7)
+i_length7       = input.int         (21,    "Length", 1,                                            group=g7)
 i_source7       = input             (close, "Source",                                               group=g7)
 i_offset7       = input.int         (0,     "Offset",                                               group=g7)
 i_timeframe7    = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g7)
@@ -108,6 +108,7 @@ i_length8       = input.int         (200,   "Length", 1,                        
 i_source8       = input             (close, "Source",                                               group=g8)
 i_offset8       = input.int         (0,     "Offset",                                               group=g8)
 i_timeframe8    = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g8)
+i_show8         = input.bool        (false, "Show",                                                 group=g8)
 
 i_enableGaps    = input             (true,  "Wait for timeframe closes",                            group=g9)
 
@@ -191,6 +192,6 @@ plot(f_canDisplay(i_timeframe6) ? ma6 : na, "Hourly Slow MA", DEFAULT_COLOR6, DE
 
 // Plot daily MAs
 plot(f_canDisplay(i_timeframe7) ? ma7 : na, "Daily Fast MA", DEFAULT_COLOR7, DEFAULT_LINEWIDTH, offset=i_offset7)
-plot(f_canDisplay(i_timeframe8) ? ma8 : na, "Daily Slow MA", DEFAULT_COLOR8, DEFAULT_LINEWIDTH, offset=i_offset8)
+plot(f_canDisplay(i_timeframe8) and i_show8 ? ma8 : na, "Daily Slow MA", DEFAULT_COLOR8, DEFAULT_LINEWIDTH, offset=i_offset8)
 
 //#endregion
