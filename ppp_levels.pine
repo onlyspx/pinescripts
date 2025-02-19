@@ -1,0 +1,76 @@
+// @version=5
+indicator("PPP Levels", overlay=true)
+
+// Toggle inputs
+showKeyLevels = input.bool(true, "Show Key Levels")
+showMarketProfile = input.bool(true, "Show Market Profile")
+
+// CSV Data inputs
+keyLevelsData = input.text_area(defval="", title="Key Levels CSV (ES Level,Description)", group="Data Input")
+marketProfileData = input.text_area(defval="", title="Market Profile CSV (Description,ES Level,NQ Level)", group="Data Input")
+
+// Color and style settings
+var int transparency = input.int(50, "Line Transparency", minval=0, maxval=100, group="Style")
+color keyLevelColor = color.new(color.blue, transparency)
+color vpocColor = color.new(color.purple, transparency)
+color esProfileColor = color.new(color.green, transparency)
+color nqProfileColor = color.new(color.orange, transparency)
+
+// Line style settings
+var string styleChoice = input.string(defval="Dashed", title="Line Style", options=["Solid", "Dashed", "Dotted"], group="Style")
+lineStyle = styleChoice == "Dashed" ? line.style_dashed : styleChoice == "Dotted" ? line.style_dotted : line.style_solid
+lineWidth = input.int(1, "Line Width", minval=1, maxval=4, group="Style")
+
+// Function to split CSV line
+splitCsvLine(line) =>
+    string[] result = array.new_string(0)
+    string currentField = ""
+    bool inQuotes = false
+    
+    for i = 0 to str.length(line) - 1
+        char = str.substring(line, i, i + 1)
+        if char == "\""
+            inQuotes := not inQuotes
+        else if char == "," and not inQuotes
+            array.push(result, currentField)
+            currentField := ""
+        else
+            currentField := currentField + char
+    
+    array.push(result, currentField)
+    result
+
+// Parse and plot key levels
+if showKeyLevels and str.length(keyLevelsData) > 0
+    var lines = str.split(keyLevelsData, "\n")
+    for i = 1 to array.size(lines) - 1  // Skip header
+        line = array.get(lines, i)
+        fields = splitCsvLine(line)
+        if array.size(fields) >= 2
+            level = str.tonumber(array.get(fields, 0))
+            desc = array.get(fields, 1)
+            if not na(level)
+                isVpoc = str.contains(desc, "VPOC")
+                lineColor = isVpoc ? vpocColor : keyLevelColor
+                labelColor = isVpoc ? color.purple : color.blue
+                line.new(bar_index - 1, level, bar_index, level, color=lineColor, extend=extend.right, style=lineStyle, width=lineWidth)
+                label.new(bar_index, level, desc, color=labelColor, textcolor=color.white, style=label.style_label_left)
+
+// Parse and plot market profile levels
+if showMarketProfile and str.length(marketProfileData) > 0
+    var mpLines = str.split(marketProfileData, "\n")
+    for i = 1 to array.size(mpLines) - 1  // Skip header
+        line = array.get(mpLines, i)
+        fields = splitCsvLine(line)
+        if array.size(fields) >= 3
+            desc = array.get(fields, 0)
+            esLevel = str.tonumber(array.get(fields, 1))
+            nqLevel = str.tonumber(array.get(fields, 2))
+            
+            if not na(esLevel)
+                line.new(bar_index - 1, esLevel, bar_index, esLevel, color=esProfileColor, extend=extend.right, style=lineStyle, width=lineWidth)
+                label.new(bar_index, esLevel, desc + " (ES)", color=color.green, textcolor=color.white, style=label.style_label_left)
+            
+            if not na(nqLevel)
+                line.new(bar_index - 1, nqLevel, bar_index, nqLevel, color=nqProfileColor, extend=extend.right, style=lineStyle, width=lineWidth)
+                label.new(bar_index, nqLevel, desc + " (NQ)", color=color.orange, textcolor=color.white, style=label.style_label_left)
