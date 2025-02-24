@@ -1,0 +1,292 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © amitgandhinz
+
+//@version=5
+indicator(title="ORB", overlay=true)
+ 
+ 
+// Input options
+// openingRangeMinutes = input.int(15, title="Opening Range Period (minutes)", options=[5, 15, 30])
+
+// hack the tradingview issue where int combo boxes no longer display correctly (12/21/2022), but string combo boxes still work
+sOpeningRangeMinutes = input.string("15", title="Period (minutes)", options=["5", "15", "30", "0"], tooltip="Set to 0 if you want to use International Overrides")
+openingRangeMinutes = str.tonumber(sOpeningRangeMinutes)
+
+//session = input.session("0930-0945", title="Opening Range Session Time", options=["0930-0935", "0930-0945", "0930-1000"])
+alertBreakoutsOnly = input.bool(false, "Alert only on ORB breakouts (not price ticks)")
+
+
+showLabels = input.bool(true, "Show ORB labels", group="Display Lines")
+showPreviousDayORBs = input.bool(true, "Show ORB ranges on previous days", group="Display Lines")
+showEntries = input.bool(true, "Show potential ORB Breakouts and Retests (BRB)", group="Display Lines")
+showPriceTargets= input.bool(true, "Show Default Price Targets (50%, 100%)", group="Display Lines")
+showPriceTargetsExtended = input.bool(false, "Show Extended Price Targets (150%, 200%)", group="Display Lines")
+showMidPoint = input.bool(false, "Show ORB Mid Point", group="Display Lines")
+
+showFibTargets = false//input.bool(false, "Show Fibonacci Targets (21.2%, 61.8%)", group="Display Lines")
+
+boxBorderSize = 2 // input.int(2, title="Box border size", minval=0, group="Style")
+showShadedBox = input.bool(true, "Shade the ORB Range", group="ORB Box")
+shadeColor = input.color(color.teal, "Shaded ORB Range Color", group="ORB Box")
+
+orb50Color = input.color(color.purple, "ORB 50 Price Target", group="ORB Box")
+orb100Color = input.color(color.blue, "ORB 100 Price Target", group="ORB Box")
+orbOtherColor = input.color(color.teal, "All Other ORB Price Targets", group="ORB Box")
+
+sORBStartTime = input.string("0930-0945", title="Time Override", tooltip="Set Period to 0 to apply. Format should be 0930-0945", group="Optional International Overrides")
+sTimeZone = input.string("America/New_York", title="Timezone", options=["America/New_York", "Europe/Amsterdam", "Europe/Berlin", "Asia/Kolkata", "Asia/Shanghai", "Asia/Tokyo", "Etc/UTC"], group="Optional International Overrides")
+
+
+session = switch openingRangeMinutes
+    5  => "0930-0935"
+    15 => "0930-0945"
+    30 => "0930-1000"
+    0 => sORBStartTime
+    => "0930-0945"
+
+
+    
+inputMax = openingRangeMinutes
+timeinrange(session) => not na(time(timeframe.period, session + ":23456", sTimeZone)) ? 1 : 0
+// t = time(timeframe.period, session + ":23456")
+in_session =  timeinrange(session)
+hideOpen = timeframe.isintraday and timeframe.multiplier <= inputMax and not in_session
+
+
+// Create variables
+var orbTitle = "ORB" + str.tostring(openingRangeMinutes)
+var orbHighPrice = 0.0
+var orbLowPrice  = 0.0
+
+var box dailyBox = na
+var inBreakout = false
+
+// See if a new calendar day started on the intra-day time frame
+newDayStart = dayofmonth != dayofmonth[1] and 
+     timeframe.isintraday
+     
+bool isToday = false
+if year(timenow) == year(time) and month(timenow) == month(time) and dayofmonth(timenow) == dayofmonth(time) and session.ismarket
+    isToday := true
+     
+// determine ORB15 levels
+is_newbar(res) => ta.change(time(res)) != 0
+
+is_first = in_session and not in_session[1] and session.ismarket
+
+
+if is_first
+    orbHighPrice := high
+    orbLowPrice := low
+    inBreakout := false
+else
+    orbHighPrice := orbHighPrice[1]
+    orbLowPrice := orbLowPrice[1]
+if high > orbHighPrice and in_session
+    orbHighPrice := high
+if low < orbLowPrice and in_session
+    orbLowPrice := low
+
+
+
+
+
+bool drawOrbs = showPreviousDayORBs or (not showPreviousDayORBs and isToday)
+
+// When a new day start, create a new box for that day.
+// Else, during the day, update that day's box.
+if ( drawOrbs)
+    if (showShadedBox)
+        if is_first 
+            dailyBox := box.new(left=bar_index, top=orbHighPrice,
+                 right=bar_index + 1, bottom=orbLowPrice,
+                 border_width=boxBorderSize)
+        
+            // If we don't want the boxes to join, the previous box shouldn't
+            // end on the same bar as the new box starts.
+            box.set_right(dailyBox[1], bar_index[1])
+            
+           
+        else
+            box.set_top(dailyBox, orbHighPrice)
+            box.set_rightbottom(dailyBox, right=bar_index + 1, bottom=orbLowPrice)
+    
+    
+        box.set_bgcolor(dailyBox, color.new(shadeColor, 80))
+        box.set_border_color(dailyBox, color.teal)
+
+
+plot(not in_session and drawOrbs ? orbHighPrice  : na, style=plot.style_linebr, color=orbHighPrice[1] != orbHighPrice ? na : color.green, title="ORB High", linewidth=2)
+plot(not in_session and drawOrbs  ? orbLowPrice : na ,  style=plot.style_linebr, color=orbLowPrice[1] != orbLowPrice ? na : color.red, title="ORB Low", linewidth=2)
+
+
+// plot PT for ORB - 50% retracement
+
+orbRange = orbHighPrice - orbLowPrice
+plot(not in_session and showPriceTargets and showMidPoint and drawOrbs ? orbLowPrice + (orbRange * 0.5): na     ,  style=plot.style_linebr, color=orbLowPrice[1] != orbLowPrice ? na : color.gray, title="ORB Mid Point", linewidth=1)
+
+
+
+
+plot(not in_session and showPriceTargets and drawOrbs ? orbHighPrice + (orbRange * 0.5) : na,     style=plot.style_linebr, color=orb50Color, title="ORB High PT 0.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs ? orbHighPrice + (orbRange * 1.0): na ,     style=plot.style_linebr, color=orb100Color, title="ORB High PT 1.0", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbHighPrice + (orbRange * 1.5): na ,     style=plot.style_linebr, color=orbOtherColor, title="ORB High PT 1.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbHighPrice + (orbRange * 2.0): na ,     style=plot.style_linebr, color=orbOtherColor, title="ORB High PT 2.0", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbHighPrice + (orbRange * 2.5): na ,     style=plot.style_linebr, color=orbOtherColor, title="ORB High PT 2.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbHighPrice + (orbRange * 3.0): na ,     style=plot.style_linebr, color=orbOtherColor, title="ORB High PT 3.0", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbHighPrice + (orbRange * 3.5): na ,     style=plot.style_linebr, color=orbOtherColor, title="ORB High PT 3.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbHighPrice + (orbRange * 4.0): na ,     style=plot.style_linebr, color=orbOtherColor, title="ORB High PT 4.0", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbHighPrice + (orbRange * 4.5): na ,     style=plot.style_linebr, color=orbOtherColor, title="ORB High PT 4.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbHighPrice + (orbRange * 5.0): na ,     style=plot.style_linebr, color=orbOtherColor, title="ORB High PT 5.0", linewidth=2)
+
+plot(not in_session and showPriceTargets and drawOrbs ? orbLowPrice + (orbRange * -0.5): na     , style=plot.style_linebr, color=orb50Color, title="ORB Low PT 0.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs ? orbLowPrice + (orbRange * -1.0): na     ,  style=plot.style_linebr, color=orb100Color, title="ORB Low PT 1.0", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbLowPrice + (orbRange * -1.5): na     ,  style=plot.style_linebr, color=orbOtherColor, title="ORB Low PT 1.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbLowPrice + (orbRange * -2.0): na     ,  style=plot.style_linebr, color=orbOtherColor, title="ORB Low PT 2.0", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbLowPrice + (orbRange * -2.5): na     ,  style=plot.style_linebr, color=orbOtherColor, title="ORB Low PT 2.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbLowPrice + (orbRange * -3.0): na     ,  style=plot.style_linebr, color=orbOtherColor, title="ORB Low PT 3.0", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbLowPrice + (orbRange * -3.5): na     ,  style=plot.style_linebr, color=orbOtherColor, title="ORB Low PT 3.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbLowPrice + (orbRange * -4.0): na     ,  style=plot.style_linebr, color=orbOtherColor, title="ORB Low PT 4.0", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbLowPrice + (orbRange * -4.5): na     ,  style=plot.style_linebr, color=orbOtherColor, title="ORB Low PT 4.5", linewidth=2)
+plot(not in_session and showPriceTargets and drawOrbs and showPriceTargetsExtended ? orbLowPrice + (orbRange * -5.0): na     ,  style=plot.style_linebr, color=orbOtherColor, title="ORB Low PT 5.0", linewidth=2)
+
+
+
+// fib levels
+plot(not in_session and showFibTargets ? orbHighPrice + (orbRange * 0.272): na     ,  style=plot.style_linebr, color=orb50Color, title="ORB 27.2%", linewidth=2)
+plot(not in_session and showFibTargets ? orbHighPrice + (orbRange * 0.618): na     ,  style=plot.style_linebr, color=orb100Color, title="ORB 61.8%", linewidth=2)
+plot(not in_session and showFibTargets ? orbLowPrice + (orbRange * -0.272): na     ,  style=plot.style_linebr, color=orb50Color, title="ORB 27.2%", linewidth=2)
+plot(not in_session and showFibTargets ? orbLowPrice + (orbRange * -0.618): na     ,  style=plot.style_linebr, color=orb100Color, title="ORB 61.8%", linewidth=2)
+
+
+
+drawPriceTargetLabel(fromPrice, level, name, col) => 
+    if showLabels
+        var pt = label.new(bar_index, fromPrice + (orbRange * level), style=label.style_label_lower_left, text=orbTitle + " " + name, color=col, textcolor=color.white)
+        label.set_xy(pt, bar_index + 2, fromPrice + (orbRange * level))
+
+
+
+drawPriceTargetLabel(orbHighPrice, 0, "HIGH", color.green)
+drawPriceTargetLabel(orbLowPrice, 0, "LOW", color.red)
+
+    
+if (not in_session and showPriceTargets and isToday and session.ismarket and drawOrbs )
+    drawPriceTargetLabel(orbHighPrice, 0.5, "PT 50%", orb50Color)
+    drawPriceTargetLabel(orbHighPrice, 1.0, "PT 100%", orb100Color)
+
+    
+    drawPriceTargetLabel(orbLowPrice, -0.5, "PT 50%", orb50Color)
+    drawPriceTargetLabel(orbLowPrice, -1.0, "PT 100%", orb100Color)
+
+    
+    if showPriceTargetsExtended
+        drawPriceTargetLabel(orbHighPrice, 1.5, "PT 150%", orbOtherColor)
+        drawPriceTargetLabel(orbHighPrice, 2.0, "PT 200%", orbOtherColor)
+        drawPriceTargetLabel(orbHighPrice, 2.5, "PT 250%", orbOtherColor)
+        drawPriceTargetLabel(orbHighPrice, 3.0, "PT 300%", orbOtherColor)
+        drawPriceTargetLabel(orbHighPrice, 3.5, "PT 350%", orbOtherColor)
+        drawPriceTargetLabel(orbHighPrice, 4.0, "PT 400%", orbOtherColor)
+        drawPriceTargetLabel(orbHighPrice, 4.5, "PT 450%", orbOtherColor)
+        drawPriceTargetLabel(orbHighPrice, 5.0, "PT 500%",orbOtherColor)
+        
+        drawPriceTargetLabel(orbLowPrice, -1.5, "PT 150%", orbOtherColor)
+        drawPriceTargetLabel(orbLowPrice, -2.0, "PT 200%", orbOtherColor) 
+        drawPriceTargetLabel(orbLowPrice, -2.5, "PT 250%", orbOtherColor)
+        drawPriceTargetLabel(orbLowPrice, -3.0, "PT 300%", orbOtherColor)  
+        drawPriceTargetLabel(orbLowPrice, -3.5, "PT 350%", orbOtherColor)
+        drawPriceTargetLabel(orbLowPrice, -4.0, "PT 400%", orbOtherColor) 
+        drawPriceTargetLabel(orbLowPrice, -4.5, "PT 450%", orbOtherColor) 
+        drawPriceTargetLabel(orbLowPrice, -5.0, "PT 500%", orbOtherColor) 
+    
+    if showMidPoint
+        drawPriceTargetLabel(orbLowPrice,  0.5, "MIDPOINT", color.gray)
+
+if (not in_session and showFibTargets and isToday and session.ismarket and drawOrbs )
+    drawPriceTargetLabel(orbHighPrice, 0.272, "FIB 27.2%", orb50Color)
+    drawPriceTargetLabel(orbHighPrice, 0.618, "FIB 61.8%", orb100Color)
+    drawPriceTargetLabel(orbLowPrice, -0.272, "FIB 27.2%", orb50Color)
+    drawPriceTargetLabel(orbLowPrice, -0.618, "FIB 61.8%", orb100Color)
+ 
+// candle crossed orb level, next candle stayed above it, current candle also stayed above it, and had volume in there
+//volumeSMA = ta.sma(volume, 20)
+//bool volumeSpiked = volume[2] > volumeSMA[2] or volume[1] > volumeSMA[1] or volume > volumeSMA
+bool highCrossBO = (low[2] < orbHighPrice and close[2] > orbHighPrice and low[1] > orbHighPrice and close[1] > orbHighPrice and close > low[1] and  low > orbHighPrice)  and session.ismarket
+bool lowCrossBO =  (high[2] > orbLowPrice and close[2] < orbLowPrice and high[1] < orbLowPrice and close[1] < orbLowPrice   and close < high[1] and high < orbLowPrice)  and session.ismarket
+
+bool highCross = (not alertBreakoutsOnly and ta.cross(close, orbHighPrice)) or (alertBreakoutsOnly and highCrossBO) 
+bool lowCross =  (not alertBreakoutsOnly and ta.cross(close, orbLowPrice)) or (alertBreakoutsOnly and lowCrossBO) 
+
+
+bool isRetestOrbHigh = close[1] > orbHighPrice and low <= orbHighPrice and close >= orbHighPrice
+bool isRetestOrbLow  = close[1] < orbLowPrice and high >= orbLowPrice and close <= orbLowPrice
+bool failedRetest = inBreakout and ((close[1] > orbHighPrice and close < orbHighPrice) or (close[1] < orbLowPrice and close > orbLowPrice))
+
+// show entries
+if (showEntries and session.ismarket)
+    if (highCrossBO)
+        lbl = label.new(bar_index, na)
+        label.set_color(lbl, color.green)
+        label.set_textcolor(lbl, color.green)
+        label.set_text(lbl, "Breakout\n Wait for Retest")
+        label.set_yloc( lbl,yloc.abovebar)
+        label.set_style(lbl, label.style_triangledown)
+        label.set_size(lbl, size.tiny)
+        
+        inBreakout := true
+        
+    if (lowCrossBO)
+        lbl = label.new(bar_index, na)
+        label.set_color(lbl, color.green)
+        label.set_textcolor(lbl, color.green)
+        label.set_text(lbl, "Breakout,\n Wait for Retest")
+        label.set_yloc( lbl,yloc.belowbar)
+        label.set_style(lbl, label.style_triangleup)
+        label.set_size(lbl, size.tiny)
+        
+        inBreakout := true
+        
+    if inBreakout and (isRetestOrbHigh or isRetestOrbLow)
+        // we have our breakout and retest
+        lbl = label.new(bar_index, na)
+        label.set_color(lbl, color.green)
+        label.set_textcolor(lbl, color.white)
+        label.set_text(lbl, "Retest")
+        label.set_yloc( lbl,yloc.abovebar)
+        label.set_style(lbl, label.style_label_down)
+        label.set_size(lbl, size.tiny)
+        
+        inBreakout := false
+        
+    if inBreakout and failedRetest
+        // we have failed the retest
+        lbl = label.new(bar_index, na)
+        label.set_color(lbl, color.red)
+        label.set_textcolor(lbl, color.white)
+        label.set_text(lbl, "Failed Retest")
+        label.set_yloc( lbl,yloc.abovebar)
+        label.set_style(lbl, label.style_label_down)
+        label.set_size(lbl, size.tiny)
+        
+        inBreakout := false
+        
+
+// show alerts
+
+alertcondition(not in_session and session.ismarket and (highCross or lowCross), title="ORB Level Cross", message="Price crossing ORB Level")
+alertcondition(not in_session and session.ismarket and alertBreakoutsOnly and (highCrossBO or lowCrossBO), title="ORB Breakout", message="Price Breaking out of ORB Level, Look for Retest")
+
+if (not in_session and isToday and session.ismarket)
+    if (not alertBreakoutsOnly)
+        if highCross
+            alert("Price crossing ORB High Level", alert.freq_once_per_bar)
+            
+        if lowCross
+            alert("Price crossing ORB Low Level", alert.freq_once_per_bar)
+    
+    if (alertBreakoutsOnly)
+        if highCrossBO
+            alert("Price breaking out of ORB High Level, Look for Retest", alert.freq_once_per_bar)
+            
+        if lowCrossBO
+            alert("Price breaking out of ORB Low Level, Look for Retest", alert.freq_once_per_bar)
