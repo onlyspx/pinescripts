@@ -167,27 +167,56 @@ plot(not in_session and showFibTargets ? orbLowPrice + (orbRange * -0.618): na  
 
 
 
-drawPriceTargetLabel(fromPrice, level, name, col) => 
+var label highLabel = na
+var label lowLabel = na
+var label[] ptLabels = array.new_label()
+
+// Clear all labels when session changes
+if prevSession != session
+    if not na(highLabel)
+        label.delete(highLabel)
+    if not na(lowLabel)
+        label.delete(lowLabel)
+    array.clear(ptLabels)
+
+drawPriceTargetLabel(fromPrice, level, name, col, isMainLabel = false) => 
     if showLabels
-        label.new(bar_index, fromPrice + (orbRange * level), 
-             style=label.style_label_lower_left, 
-             text=orbTitle + " " + name, 
-             color=col, 
-             textcolor=color.white,
-             xloc=xloc.bar_index)
+        if isMainLabel
+            var lbl = label.new(bar_index, fromPrice + (orbRange * level), 
+                 style=label.style_label_lower_left, 
+                 text=orbTitle + " " + name, 
+                 color=col, 
+                 textcolor=color.white,
+                 xloc=xloc.bar_index)
+            label.set_xy(lbl, bar_index, fromPrice + (orbRange * level))
+            label.set_text(lbl, orbTitle + " " + name)
+            lbl
+        else
+            lbl = label.new(bar_index, fromPrice + (orbRange * level), 
+                 style=label.style_label_lower_left, 
+                 text=orbTitle + " " + name, 
+                 color=col, 
+                 textcolor=color.white,
+                 xloc=xloc.bar_index)
+            array.push(ptLabels, lbl)
+            lbl
 
 
 
 if not in_session and drawOrbs
-    drawPriceTargetLabel(orbHighPrice, 0, "HIGH (Range: " + str.tostring(orbRange, "#.##") + ")", color.green)
-    drawPriceTargetLabel(orbLowPrice, 0, "LOW", color.red)
+    highLabel := drawPriceTargetLabel(orbHighPrice, 0, "HIGH (Range: " + str.tostring(orbRange, "#.##") + ")", color.green, true)
+    lowLabel := drawPriceTargetLabel(orbLowPrice, 0, "LOW", color.red, true)
 
     
+// Clear old price target labels before drawing new ones
+if array.size(ptLabels) > 0
+    for i = 0 to array.size(ptLabels) - 1
+        label.delete(array.get(ptLabels, i))
+    array.clear(ptLabels)
+
 if (not in_session and showPriceTargets and isToday and session.ismarket and drawOrbs )
     drawPriceTargetLabel(orbHighPrice, 0.5, "PT 50%", orb50Color)
     drawPriceTargetLabel(orbHighPrice, 1.0, "PT 100%", orb100Color)
-
-    
     drawPriceTargetLabel(orbLowPrice, -0.5, "PT 50%", orb50Color)
     drawPriceTargetLabel(orbLowPrice, -1.0, "PT 100%", orb100Color)
 
@@ -234,51 +263,69 @@ bool isRetestOrbHigh = close[1] > orbHighPrice and low <= orbHighPrice and close
 bool isRetestOrbLow  = close[1] < orbLowPrice and high >= orbLowPrice and close <= orbLowPrice
 bool failedRetest = inBreakout and ((close[1] > orbHighPrice and close < orbHighPrice) or (close[1] < orbLowPrice and close > orbLowPrice))
 
+var label breakoutLabel = na
+var label retestLabel = na
+
+// Clear breakout labels when session changes
+if prevSession != session
+    if not na(breakoutLabel)
+        label.delete(breakoutLabel)
+    if not na(retestLabel)
+        label.delete(retestLabel)
+
 // show entries
 if (showEntries and session.ismarket)
     if (highCrossBO)
-        lbl = label.new(bar_index, na)
-        label.set_color(lbl, color.green)
-        label.set_textcolor(lbl, color.green)
-        label.set_text(lbl, "Breakout\n Wait for Retest")
-        label.set_yloc( lbl,yloc.abovebar)
-        label.set_style(lbl, label.style_triangledown)
-        label.set_size(lbl, size.tiny)
+        if not na(breakoutLabel)
+            label.delete(breakoutLabel)
+        breakoutLabel := label.new(bar_index, na)
+        label.set_color(breakoutLabel, color.green)
+        label.set_textcolor(breakoutLabel, color.green)
+        label.set_text(breakoutLabel, "Breakout\n Wait for Retest")
+        label.set_yloc(breakoutLabel, yloc.abovebar)
+        label.set_style(breakoutLabel, label.style_triangledown)
+        label.set_size(breakoutLabel, size.tiny)
         
         inBreakout := true
         
     if (lowCrossBO)
-        lbl = label.new(bar_index, na)
-        label.set_color(lbl, color.green)
-        label.set_textcolor(lbl, color.green)
-        label.set_text(lbl, "Breakout,\n Wait for Retest")
-        label.set_yloc( lbl,yloc.belowbar)
-        label.set_style(lbl, label.style_triangleup)
-        label.set_size(lbl, size.tiny)
+        if not na(breakoutLabel)
+            label.delete(breakoutLabel)
+        breakoutLabel := label.new(bar_index, na)
+        label.set_color(breakoutLabel, color.green)
+        label.set_textcolor(breakoutLabel, color.green)
+        label.set_text(breakoutLabel, "Breakout,\n Wait for Retest")
+        label.set_yloc(breakoutLabel, yloc.belowbar)
+        label.set_style(breakoutLabel, label.style_triangleup)
+        label.set_size(breakoutLabel, size.tiny)
         
         inBreakout := true
         
     if inBreakout and (isRetestOrbHigh or isRetestOrbLow)
         // we have our breakout and retest
-        lbl = label.new(bar_index, na)
-        label.set_color(lbl, color.green)
-        label.set_textcolor(lbl, color.white)
-        label.set_text(lbl, "Retest")
-        label.set_yloc( lbl,yloc.abovebar)
-        label.set_style(lbl, label.style_label_down)
-        label.set_size(lbl, size.tiny)
+        if not na(retestLabel)
+            label.delete(retestLabel)
+        retestLabel := label.new(bar_index, na)
+        label.set_color(retestLabel, color.green)
+        label.set_textcolor(retestLabel, color.white)
+        label.set_text(retestLabel, "Retest")
+        label.set_yloc(retestLabel, yloc.abovebar)
+        label.set_style(retestLabel, label.style_label_down)
+        label.set_size(retestLabel, size.tiny)
         
         inBreakout := false
         
     if inBreakout and failedRetest
         // we have failed the retest
-        lbl = label.new(bar_index, na)
-        label.set_color(lbl, color.red)
-        label.set_textcolor(lbl, color.white)
-        label.set_text(lbl, "Failed Retest")
-        label.set_yloc( lbl,yloc.abovebar)
-        label.set_style(lbl, label.style_label_down)
-        label.set_size(lbl, size.tiny)
+        if not na(retestLabel)
+            label.delete(retestLabel)
+        retestLabel := label.new(bar_index, na)
+        label.set_color(retestLabel, color.red)
+        label.set_textcolor(retestLabel, color.white)
+        label.set_text(retestLabel, "Failed Retest")
+        label.set_yloc(retestLabel, yloc.abovebar)
+        label.set_style(retestLabel, label.style_label_down)
+        label.set_size(retestLabel, size.tiny)
         
         inBreakout := false
         
