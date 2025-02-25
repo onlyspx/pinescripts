@@ -9,7 +9,7 @@ indicator(title="ORB", overlay=true)
 // openingRangeMinutes = input.int(15, title="Opening Range Period (minutes)", options=[5, 15, 30])
 
 // hack the tradingview issue where int combo boxes no longer display correctly (12/21/2022), but string combo boxes still work
-sOpeningRangeMinutes = input.string("15", title="Period (minutes)", options=["5", "15", "30", "0"], tooltip="Set to 0 if you want to use International Overrides")
+sOpeningRangeMinutes = input.string("15", title="Period (minutes)", options=["5", "15", "30", "60", "0"], tooltip="Set to 0 if you want to use International Overrides")
 openingRangeMinutes = str.tonumber(sOpeningRangeMinutes)
 
 //session = input.session("0930-0945", title="Opening Range Session Time", options=["0930-0935", "0930-0945", "0930-1000"])
@@ -41,6 +41,7 @@ session = switch openingRangeMinutes
     5  => "0930-0935"
     15 => "0930-0945"
     30 => "0930-1000"
+    60 => "0930-1030"
     0 => sORBStartTime
     => "0930-0945"
 
@@ -54,12 +55,35 @@ hideOpen = timeframe.isintraday and timeframe.multiplier <= inputMax and not in_
 
 
 // Create variables
-var orbTitle = "ORB" + str.tostring(openingRangeMinutes)
-var orbHighPrice = 0.0
-var orbLowPrice  = 0.0
-
+var float orbHighPrice = na
+var float orbLowPrice = na
+var string prevSession = session
 var box dailyBox = na
 var inBreakout = false
+
+// Reset values at session start or when session changes
+orbTitle = "ORB" + str.tostring(openingRangeMinutes)
+
+// determine ORB levels
+is_newbar(res) => ta.change(time(res)) != 0
+is_first = in_session and not in_session[1] and session.ismarket
+
+if barstate.isfirst
+    orbHighPrice := na
+    orbLowPrice := na
+
+if prevSession != session
+    orbHighPrice := na
+    orbLowPrice := na
+    prevSession := session
+
+if is_first
+    orbHighPrice := high
+    orbLowPrice := low
+    inBreakout := false
+else if in_session and not na(orbHighPrice)
+    orbHighPrice := math.max(high, orbHighPrice)
+    orbLowPrice := math.min(low, orbLowPrice)
 
 // See if a new calendar day started on the intra-day time frame
 newDayStart = dayofmonth != dayofmonth[1] and 
@@ -68,24 +92,6 @@ newDayStart = dayofmonth != dayofmonth[1] and
 bool isToday = false
 if year(timenow) == year(time) and month(timenow) == month(time) and dayofmonth(timenow) == dayofmonth(time) and session.ismarket
     isToday := true
-     
-// determine ORB15 levels
-is_newbar(res) => ta.change(time(res)) != 0
-
-is_first = in_session and not in_session[1] and session.ismarket
-
-
-if is_first
-    orbHighPrice := high
-    orbLowPrice := low
-    inBreakout := false
-else
-    orbHighPrice := orbHighPrice[1]
-    orbLowPrice := orbLowPrice[1]
-if high > orbHighPrice and in_session
-    orbHighPrice := high
-if low < orbLowPrice and in_session
-    orbLowPrice := low
 
 
 
@@ -116,13 +122,14 @@ if ( drawOrbs)
         box.set_border_color(dailyBox, color.teal)
 
 
+// Calculate ORB range first
+orbRange = orbHighPrice - orbLowPrice
+
 plot(not in_session and drawOrbs ? orbHighPrice  : na, style=plot.style_linebr, color=orbHighPrice[1] != orbHighPrice ? na : color.green, title="ORB High", linewidth=2)
 plot(not in_session and drawOrbs  ? orbLowPrice : na ,  style=plot.style_linebr, color=orbLowPrice[1] != orbLowPrice ? na : color.red, title="ORB Low", linewidth=2)
 
 
 // plot PT for ORB - 50% retracement
-
-orbRange = orbHighPrice - orbLowPrice
 plot(not in_session and showPriceTargets and showMidPoint and drawOrbs ? orbLowPrice + (orbRange * 0.5): na     ,  style=plot.style_linebr, color=orbLowPrice[1] != orbLowPrice ? na : color.gray, title="ORB Mid Point", linewidth=1)
 
 
@@ -162,13 +169,18 @@ plot(not in_session and showFibTargets ? orbLowPrice + (orbRange * -0.618): na  
 
 drawPriceTargetLabel(fromPrice, level, name, col) => 
     if showLabels
-        var pt = label.new(bar_index, fromPrice + (orbRange * level), style=label.style_label_lower_left, text=orbTitle + " " + name, color=col, textcolor=color.white)
-        label.set_xy(pt, bar_index + 2, fromPrice + (orbRange * level))
+        label.new(bar_index, fromPrice + (orbRange * level), 
+             style=label.style_label_lower_left, 
+             text=orbTitle + " " + name, 
+             color=col, 
+             textcolor=color.white,
+             xloc=xloc.bar_index)
 
 
 
-drawPriceTargetLabel(orbHighPrice, 0, "HIGH", color.green)
-drawPriceTargetLabel(orbLowPrice, 0, "LOW", color.red)
+if not in_session and drawOrbs
+    drawPriceTargetLabel(orbHighPrice, 0, "HIGH (Range: " + str.tostring(orbRange, "#.##") + ")", color.green)
+    drawPriceTargetLabel(orbLowPrice, 0, "LOW", color.red)
 
     
 if (not in_session and showPriceTargets and isToday and session.ismarket and drawOrbs )
