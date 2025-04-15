@@ -58,4 +58,4 @@ processLevels(levelInput, showLevels, textColor, alignRight = false) =>
 // Process all level types
 processLevels(dailyLevelsInput, showDailyLevels, color.white)
 processLevels(weeklyLevelsInput, showWeeklyLevels, color.yellow, true)
-processLevels(vixLevelsInput, true, color.yellow, true)
+processLevels(vixLevelsInput, isVIX, color.yellow, true) // Only show VIX levels on VIX charts
