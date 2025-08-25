@@ -95,6 +95,7 @@ i_length6       = input.int         (200,   "Length", 1,                        
 i_source6       = input             (close, "Source",                                               group=g6)
 i_offset6       = input.int         (0,     "Offset",                                               group=g6)
 i_timeframe6    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g6)
+i_show6         = input.bool        (false, "Show",                                                 group=g6)
 
 // Daily MAs
 i_type_7        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g7)
@@ -102,6 +103,7 @@ i_length7       = input.int         (21,    "Length", 1,                        
 i_source7       = input             (close, "Source",                                               group=g7)
 i_offset7       = input.int         (0,     "Offset",                                               group=g7)
 i_timeframe7    = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g7)
+i_show7         = input.bool        (false, "Show",                                                 group=g7)
 
 i_type_8        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g8)
 i_length8       = input.int         (200,   "Length", 1,                                            group=g8)
@@ -188,10 +190,10 @@ plot(f_canDisplay(i_timeframe4) ? ma4 : na, "MA #4", DEFAULT_COLOR4, DEFAULT_LIN
 
 // Plot hourly MAs
 plot(f_canDisplay(i_timeframe5) ? ma5 : na, "Hourly Fast MA", DEFAULT_COLOR5, DEFAULT_LINEWIDTH, offset=i_offset5)
-plot(f_canDisplay(i_timeframe6) ? ma6 : na, "Hourly Slow MA", DEFAULT_COLOR6, DEFAULT_LINEWIDTH, offset=i_offset6)
+plot(f_canDisplay(i_timeframe6) and i_show6 ? ma6 : na, "Hourly Slow MA", DEFAULT_COLOR6, DEFAULT_LINEWIDTH, offset=i_offset6)
 
 // Plot daily MAs
-plot(f_canDisplay(i_timeframe7) ? ma7 : na, "Daily Fast MA", DEFAULT_COLOR7, DEFAULT_LINEWIDTH, offset=i_offset7)
+plot(f_canDisplay(i_timeframe7) and i_show7 ? ma7 : na, "Daily Fast MA", DEFAULT_COLOR7, DEFAULT_LINEWIDTH, offset=i_offset7)
 plot(f_canDisplay(i_timeframe8) and i_show8 ? ma8 : na, "Daily Slow MA", DEFAULT_COLOR8, DEFAULT_LINEWIDTH, offset=i_offset8)
 
 //#endregion
