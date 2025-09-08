@@ -7,14 +7,14 @@ indexarb = input.int(37, title="ES - SPX", minval=0, maxval=100)
 // Price Levels Input
 textarea = input.text_area(defval = "", title = "ES daily levels")
 
-// Time Settings
-ohour   = input.int(9, title="Start Time", minval=0, maxval=23, step=1, tooltip="Hour values greater than 16 will push into the next day's session and will be off by one hour due to market settlement hour.", inline="a", group="Time")
-ominute = input.int(30, title=" ", minval=0, maxval=59, step=1, inline="a", group="Time")
-chour   = input.int(16, title="End Time", minval=0, maxval=23, step=1, tooltip="Hour values greater than 16 will push into the next day's session and will be off by one hour due to market settlement hour.", inline="b", group="Time")
-cminute = input.int(0, title=" ", minval=0, maxval=59, step=1, inline="b", group="Time")
+// Time Settings (Fixed)
+ohour   = 9   // Start Time: 9:30 AM
+ominute = 30
+chour   = 16  // End Time: 4:00 PM
+cminute = 0
 
 // Zone Display Settings
-ext    = input.bool(false, title="Extend Zones Right?", inline="c")
+ext    = input.bool(true, title="Extend Zones Right?", inline="c")
 extl   = input.bool(false, title="Extend Zones Left?", inline="c")
 extend = ext ? extend.right : extl ? extend.left : extend.none
 
