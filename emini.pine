@@ -29,26 +29,28 @@ left = ta.barssince(openTime)
 timerange = (chour - ohour - 1)*60 + math.abs(cminute - ominute)
 right = timerange / timeframe.multiplier
 
-// Process Price Levels and Create Zones
-lines = str.split(textarea, "\n")
-for i = 0 to array.size(lines) - 1
-    line = array.get(lines, i)
-    columns = str.split(line, ",")
-    
-    price_low = str.tonumber(array.get(columns, 0))
-    price_high = str.tonumber(array.get(columns, 1))
-    zone_type = array.get(columns, 3)
-    
-    zone_top = IsSPX ? price_high - m : IsES ? price_high : na
-    zone_bottom = IsSPX ? price_low - m : IsES ? price_low : na
-    
-    border_color = close > zone_top ? color.green : close < zone_bottom ? color.red : color.white
-    bg_color = close > zone_top ? color.new(color.green, 99) : close < zone_bottom ? color.new(color.red, 99) : color.new(color.white, 99)
-    
-    box.new(bar_index[left], zone_top, bar_index[left] + right, zone_bottom, 
-         border_color=border_color, 
-         extend=extend, 
-         bgcolor=bg_color, 
-         text_color=color.white, 
-         text=zone_type,
-         text_size=size.normal)
+// Process Price Levels and Create Zones (Only on intraday timeframes)
+if timeframe.isintraday
+    lines = str.split(textarea, "\n")
+    for i = 0 to array.size(lines) - 1
+        line = array.get(lines, i)
+        columns = str.split(line, ",")
+        
+        price_low = str.tonumber(array.get(columns, 0))
+        price_high = str.tonumber(array.get(columns, 1))
+        zone_type = array.get(columns, 3)
+        
+        zone_top = IsSPX ? price_high - m : IsES ? price_high : na
+        zone_bottom = IsSPX ? price_low - m : IsES ? price_low : na
+        
+        border_color = close > zone_top ? color.green : close < zone_bottom ? color.red : color.white
+        bg_color = close > zone_top ? color.new(color.green, 99) : close < zone_bottom ? color.new(color.red, 99) : color.new(color.white, 99)
+        
+        box.new(bar_index[left], zone_top, bar_index[left] + right, zone_bottom, 
+             border_color=border_color, 
+             extend=extend, 
+             bgcolor=bg_color, 
+             text_color=color.white, 
+             text=zone_type,
+             text_size=size.normal,
+             text_halign=text.align_center)
