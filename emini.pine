@@ -20,22 +20,29 @@ ema_color = input.color(color.new(color.blue, 50), title="Color", group="Indicat
 show_1hr = input.bool(false, title="Show 1HR High/Low with Extensions", group="1HR Levels")
 
 // Market Detection and Multiplier Logic
-IsSPX  = syminfo.root == "SPX" or syminfo.root == "US500"
-IsES   = syminfo.root == "ES" or syminfo.root == "MES"
-m      = IsSPX ? indexarb : IsES ? 1 : na
+IsUS500 = syminfo.root == "US500"
+IsSPX   = syminfo.root == "SPX" or IsUS500
+IsES    = syminfo.root == "ES" or syminfo.root == "MES"
+m       = IsSPX ? indexarb : IsES ? 1 : na
 
 // Session Detection (using exchange timezone)
 newSession = ta.change(time("D"))
-sessionStart = time(timeframe.period, "0930-1600")
-isFirstBarOfSession = newSession and not na(sessionStart)
+sessionSpec = (IsES or IsUS500) ? "0830-1500" : "0930-1600"
+sessionTime = time(timeframe.period, sessionSpec)
+isSessionBar = not na(sessionTime)
+isSessionStart = isSessionBar and na(sessionTime[1])
 
-// Track session start bar index
+// Track session start index and timestamp
 var int session_start_bar = na
-if isFirstBarOfSession
-    session_start_bar := bar_index
+var int session_start_time = na
 
-// Calculate bars from session start to current bar
-left = bar_index - session_start_bar
+if newSession
+    session_start_bar := na
+    session_start_time := na
+
+if isSessionStart
+    session_start_bar := bar_index
+    session_start_time := time
 
 // Session duration in minutes (9:30 AM to 4:00 PM = 390 minutes)
 sessionMinutes = 390
@@ -44,12 +51,12 @@ right = sessionMinutes / timeframe.multiplier
 // 1-Hour High/Low Tracking (first hour of session: 9:30 AM - 10:30 AM)
 var float hr1_high = na
 var float hr1_low = na
-// Check if we're in first hour using session-based time
-firstHourSession = time(timeframe.period, "0930-1030")
-in_1hr_period = not na(firstHourSession) and not na(sessionStart)
 
-// Reset on new day
-if newSession
+// Determine if current bar falls within the first hour of the regular session
+in_1hr_period = isSessionBar and not na(session_start_time) and (time - session_start_time) < 60 * 60 * 1000
+
+// Reset tracking on new day or when a fresh session starts
+if newSession or isSessionStart
     hr1_high := na
     hr1_low := na
 
@@ -82,9 +89,15 @@ if timeframe.isintraday
         price_low = str.tonumber(array.get(columns, 0))
         price_high = str.tonumber(array.get(columns, 1))
         zone_type = array.get(columns, 3)
+
+        if na(price_low) or na(price_high)
+            continue
         
         zone_top = IsSPX ? price_high - m : IsES ? price_high : na
         zone_bottom = IsSPX ? price_low - m : IsES ? price_low : na
+
+        if na(zone_top) or na(zone_bottom)
+            continue
         
         // Only show zones within 50 points of current price
         zone_distance_from_price = math.min(math.abs(close - zone_top), math.abs(close - zone_bottom))
@@ -111,7 +124,7 @@ ema_value = ta.ema(close, ema_length)
 plot(show_ema ? ema_value : na, title="EMA", color=ema_color, linewidth=2)
 
 // Plot 1HR High/Low and Extensions (only after 1hr period, on intraday timeframes, for today only)
-show_1hr_lines = show_1hr and not in_1hr_period and timeframe.isintraday and isToday
+show_1hr_lines = show_1hr and not in_1hr_period and timeframe.isintraday and isToday and not na(hr1_high) and not na(hr1_low)
 
 var line line_hr1_high = na
 var line line_hr1_low = na
