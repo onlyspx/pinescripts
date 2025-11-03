@@ -7,27 +7,66 @@ indexarb = input.int(37, title="ES - SPX", minval=0, maxval=100)
 // Price Levels Input
 textarea = input.text_area(defval = "", title = "ES daily levels")
 
-// Time Settings (Fixed)
-ohour   = 9   // Start Time: 9:30 AM
-ominute = 30
-chour   = 16  // End Time: 4:00 PM
-cminute = 0
+// VWAP Settings
+show_vwap = input.bool(false, title="Show VWAP", group="Indicators")
+vwap_color = input.color(color.new(color.yellow, 50), title="VWAP Color", group="Indicators")
 
-// Zone Display Settings
-ext    = input.bool(true, title="Extend Zones Right?", inline="c")
-extl   = input.bool(false, title="Extend Zones Left?", inline="c")
-extend = ext ? extend.right : extl ? extend.left : extend.none
+// EMA Settings
+show_ema = input.bool(false, title="Show EMA", group="Indicators", inline="ema")
+ema_length = input.int(21, title="Length", minval=1, group="Indicators", inline="ema")
+ema_color = input.color(color.new(color.blue, 50), title="Color", group="Indicators", inline="ema")
+
+// 1-Hour High/Low Settings
+show_1hr = input.bool(false, title="Show 1HR High/Low with Extensions", group="1HR Levels")
 
 // Market Detection and Multiplier Logic
 IsSPX  = syminfo.root == "SPX" or syminfo.root == "US500"
 IsES   = syminfo.root == "ES" or syminfo.root == "MES"
 m      = IsSPX ? indexarb : IsES ? 1 : na
 
-// Time Range Calculation
-openTime = hour == ohour and minute == ominute
-left = ta.barssince(openTime)
-timerange = (chour - ohour - 1)*60 + math.abs(cminute - ominute)
-right = timerange / timeframe.multiplier
+// Session Detection (using exchange timezone)
+newSession = ta.change(time("D"))
+sessionStart = time(timeframe.period, "0930-1600")
+isFirstBarOfSession = newSession and not na(sessionStart)
+
+// Track session start bar index
+var int session_start_bar = na
+if isFirstBarOfSession
+    session_start_bar := bar_index
+
+// Calculate bars from session start to current bar
+left = bar_index - session_start_bar
+
+// Session duration in minutes (9:30 AM to 4:00 PM = 390 minutes)
+sessionMinutes = 390
+right = sessionMinutes / timeframe.multiplier
+
+// 1-Hour High/Low Tracking (first hour of session: 9:30 AM - 10:30 AM)
+var float hr1_high = na
+var float hr1_low = na
+// Check if we're in first hour using session-based time
+firstHourSession = time(timeframe.period, "0930-1030")
+in_1hr_period = not na(firstHourSession) and not na(sessionStart)
+
+// Reset on new day
+if newSession
+    hr1_high := na
+    hr1_low := na
+
+// Track high/low during first hour
+if in_1hr_period
+    hr1_high := na(hr1_high) ? high : math.max(high, hr1_high)
+    hr1_low := na(hr1_low) ? low : math.min(low, hr1_low)
+
+// Calculate 1HR range and extensions
+hr1_range = hr1_high - hr1_low
+hr1_high_050 = hr1_high + (hr1_range * 0.5)
+hr1_high_100 = hr1_high + (hr1_range * 1.0)
+hr1_low_050 = hr1_low - (hr1_range * 0.5)
+hr1_low_100 = hr1_low - (hr1_range * 1.0)
+
+// Check if today (only show lines for current day)
+isToday = year(timenow) == year(time) and month(timenow) == month(time) and dayofmonth(timenow) == dayofmonth(time)
 
 // Process Price Levels and Create Zones (Only on intraday timeframes)
 if timeframe.isintraday
@@ -36,6 +75,10 @@ if timeframe.isintraday
         line = array.get(lines, i)
         columns = str.split(line, ",")
         
+        // Skip lines that don't have at least 4 columns
+        if array.size(columns) < 4
+            continue
+        
         price_low = str.tonumber(array.get(columns, 0))
         price_high = str.tonumber(array.get(columns, 1))
         zone_type = array.get(columns, 3)
@@ -43,14 +86,103 @@ if timeframe.isintraday
         zone_top = IsSPX ? price_high - m : IsES ? price_high : na
         zone_bottom = IsSPX ? price_low - m : IsES ? price_low : na
         
-        border_color = close > zone_top ? color.green : close < zone_bottom ? color.red : color.white
-        bg_color = close > zone_top ? color.new(color.green, 99) : close < zone_bottom ? color.new(color.red, 99) : color.new(color.white, 99)
+        // Only show zones within 50 points of current price
+        zone_distance_from_price = math.min(math.abs(close - zone_top), math.abs(close - zone_bottom))
+        show_zone = zone_distance_from_price <= 50 or (close >= zone_bottom and close <= zone_top)
         
-        box.new(bar_index[left], zone_top, bar_index[left] + right, zone_bottom, 
-             border_color=border_color, 
-             extend=extend, 
-             bgcolor=bg_color, 
-             text_color=color.white, 
-             text=zone_type,
-             text_size=size.normal,
-             text_halign=text.align_center)
+        if show_zone and not na(session_start_bar)
+            border_color = close > zone_top ? color.green : close < zone_bottom ? color.red : color.white
+            bg_color = close > zone_top ? color.new(color.green, 99) : close < zone_bottom ? color.new(color.red, 99) : color.new(color.white, 99)
+            
+            box.new(session_start_bar, zone_top, session_start_bar + right, zone_bottom, 
+                 border_color=border_color, 
+                 bgcolor=bg_color, 
+                 text_color=color.white, 
+                 text=zone_type,
+                 text_size=size.normal,
+                 text_halign=text.align_center)
+
+// Plot VWAP (Session-based)
+vwap_value = ta.vwap(close, newSession)
+plot(show_vwap ? vwap_value : na, title="VWAP", color=vwap_color, linewidth=2, style=plot.style_circles)
+
+// Plot EMA
+ema_value = ta.ema(close, ema_length)
+plot(show_ema ? ema_value : na, title="EMA", color=ema_color, linewidth=2)
+
+// Plot 1HR High/Low and Extensions (only after 1hr period, on intraday timeframes, for today only)
+show_1hr_lines = show_1hr and not in_1hr_period and timeframe.isintraday and isToday
+
+var line line_hr1_high = na
+var line line_hr1_low = na
+var line line_hr1_high_050 = na
+var line line_hr1_high_100 = na
+var line line_hr1_low_050 = na
+var line line_hr1_low_100 = na
+
+var label label_hr1_high = na
+var label label_hr1_low = na
+var label label_hr1_high_050 = na
+var label label_hr1_high_100 = na
+var label label_hr1_low_050 = na
+var label label_hr1_low_100 = na
+
+// Reset on new day
+if newSession and show_1hr
+    if not na(line_hr1_high)
+        line.delete(line_hr1_high)
+        line.delete(line_hr1_low)
+        line.delete(line_hr1_high_050)
+        line.delete(line_hr1_high_100)
+        line.delete(line_hr1_low_050)
+        line.delete(line_hr1_low_100)
+    if not na(label_hr1_high)
+        label.delete(label_hr1_high)
+        label.delete(label_hr1_low)
+        label.delete(label_hr1_high_050)
+        label.delete(label_hr1_high_100)
+        label.delete(label_hr1_low_050)
+        label.delete(label_hr1_low_100)
+
+// Create/Update lines and labels when 1hr period ends
+if show_1hr_lines and not na(session_start_bar)
+    // Calculate line end position (extend to market close, same as zones)
+    line_end = session_start_bar + right
+    
+    if na(line_hr1_high)
+        line_hr1_high := line.new(session_start_bar, hr1_high, line_end, hr1_high, color=color.green, width=1)
+        label_hr1_high := label.new(bar_index, hr1_high, text="1HR High (Range: " + str.tostring(hr1_range, "#.##") + ")", style=label.style_label_left, color=color.green, textcolor=color.white)
+        
+        line_hr1_low := line.new(session_start_bar, hr1_low, line_end, hr1_low, color=color.red, width=1)
+        label_hr1_low := label.new(bar_index, hr1_low, text="1HR Low", style=label.style_label_left, color=color.red, textcolor=color.white)
+        
+        line_hr1_high_050 := line.new(session_start_bar, hr1_high_050, line_end, hr1_high_050, color=color.orange, width=1)
+        label_hr1_high_050 := label.new(bar_index, hr1_high_050, text="0.5x High", style=label.style_label_left, color=color.orange, textcolor=color.white)
+        
+        line_hr1_high_100 := line.new(session_start_bar, hr1_high_100, line_end, hr1_high_100, color=color.purple, width=1)
+        label_hr1_high_100 := label.new(bar_index, hr1_high_100, text="1.0x High", style=label.style_label_left, color=color.purple, textcolor=color.white)
+        
+        line_hr1_low_050 := line.new(session_start_bar, hr1_low_050, line_end, hr1_low_050, color=color.orange, width=1)
+        label_hr1_low_050 := label.new(bar_index, hr1_low_050, text="0.5x Low", style=label.style_label_left, color=color.orange, textcolor=color.white)
+        
+        line_hr1_low_100 := line.new(session_start_bar, hr1_low_100, line_end, hr1_low_100, color=color.purple, width=1)
+        label_hr1_low_100 := label.new(bar_index, hr1_low_100, text="1.0x Low", style=label.style_label_left, color=color.purple, textcolor=color.white)
+    else
+        line.set_x2(line_hr1_high, line_end)
+        label.set_xy(label_hr1_high, bar_index, hr1_high)
+        label.set_text(label_hr1_high, "1HR High (Range: " + str.tostring(hr1_range, "#.##") + ")")
+        
+        line.set_x2(line_hr1_low, line_end)
+        label.set_xy(label_hr1_low, bar_index, hr1_low)
+        
+        line.set_x2(line_hr1_high_050, line_end)
+        label.set_xy(label_hr1_high_050, bar_index, hr1_high_050)
+        
+        line.set_x2(line_hr1_high_100, line_end)
+        label.set_xy(label_hr1_high_100, bar_index, hr1_high_100)
+        
+        line.set_x2(line_hr1_low_050, line_end)
+        label.set_xy(label_hr1_low_050, bar_index, hr1_low_050)
+        
+        line.set_x2(line_hr1_low_100, line_end)
+        label.set_xy(label_hr1_low_100, bar_index, hr1_low_100)
