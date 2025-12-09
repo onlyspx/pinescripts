@@ -48,9 +48,10 @@ session = switch openingRangeMinutes
 
     
 inputMax = openingRangeMinutes
+bool isIntradayTF = timeframe.isintraday
 timeinrange(session) => not na(time(timeframe.period, session + ":23456", sTimeZone)) ? 1 : 0
 // t = time(timeframe.period, session + ":23456")
-in_session =  timeinrange(session)
+in_session =  isIntradayTF ? timeinrange(session) : 0
 hideOpen = timeframe.isintraday and timeframe.multiplier <= inputMax and not in_session
 
 
@@ -97,7 +98,7 @@ if year(timenow) == year(time) and month(timenow) == month(time) and dayofmonth(
 
 
 
-bool drawOrbs = showPreviousDayORBs or (not showPreviousDayORBs and isToday)
+bool drawOrbs = isIntradayTF and (showPreviousDayORBs or (not showPreviousDayORBs and isToday))
 
 // When a new day start, create a new box for that day.
 // Else, during the day, update that day's box.
@@ -274,7 +275,7 @@ if prevSession != session
         label.delete(retestLabel)
 
 // show entries
-if (showEntries and session.ismarket)
+if (showEntries and session.ismarket and isIntradayTF)
     if (highCrossBO)
         if not na(breakoutLabel)
             label.delete(breakoutLabel)
@@ -332,18 +333,18 @@ if (showEntries and session.ismarket)
 
 // show alerts
 
-alertcondition(not in_session and session.ismarket and (highCross or lowCross), title="ORB Level Cross", message="Price crossing ORB Level")
-alertcondition(not in_session and session.ismarket and alertBreakoutsOnly and (highCrossBO or lowCrossBO), title="ORB Breakout", message="Price Breaking out of ORB Level, Look for Retest")
+alertcondition(isIntradayTF and not in_session and session.ismarket and (highCross or lowCross), title="ORB Level Cross", message="Price crossing ORB Level")
+alertcondition(isIntradayTF and not in_session and session.ismarket and alertBreakoutsOnly and (highCrossBO or lowCrossBO), title="ORB Breakout", message="Price Breaking out of ORB Level, Look for Retest")
 
-if (not in_session and isToday and session.ismarket)
-    if (not alertBreakoutsOnly)
+if (isIntradayTF and not in_session and isToday and session.ismarket)
+    if not alertBreakoutsOnly
         if highCross
             alert("Price crossing ORB High Level", alert.freq_once_per_bar)
             
         if lowCross
             alert("Price crossing ORB Low Level", alert.freq_once_per_bar)
     
-    if (alertBreakoutsOnly)
+    if alertBreakoutsOnly
         if highCrossBO
             alert("Price breaking out of ORB High Level, Look for Retest", alert.freq_once_per_bar)
             
