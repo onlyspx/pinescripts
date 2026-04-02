@@ -3,7 +3,7 @@
 // FPL Cheatcode 
 
 // @version=6
-indicator("FPL Cheatcode", "Cheatcode", true)
+indicator("FPL Cheatcode", "FPL Cheatcode", true)
 
 
 //--------------------------------------------------------------------
@@ -57,62 +57,62 @@ tt_timeframe    = "You can display a Moving Average from a higher timeframe. " +
 
 // Inputs
 
-// Default timeframe MAs
-i_type_1        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g1)
-i_length1       = input.int         (50,     "Length", 1,                                            group=g1)
-i_source1       = input             (close, "Source",                                               group=g1)
-i_offset1       = input.int         (0,     "Offset",                                               group=g1)
-i_timeframe1    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g1)
+// Default timeframe MAs (display.none: keep inputs in Settings, omit from chart status line)
+i_type_1        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g1, display=display.none)
+i_length1       = input.int         (50,     "Length", 1,                                            group=g1, display=display.none)
+i_source1       = input             (close, "Source",                                               group=g1, display=display.none)
+i_offset1       = input.int         (0,     "Offset",                                               group=g1, display=display.none)
+i_timeframe1    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g1, display=display.none)
 
-i_type_2        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g2)
-i_length2       = input.int         (50,    "Length", 1,                                            group=g2)
-i_source2       = input             (close, "Source",                                               group=g2)
-i_offset2       = input.int         (0,     "Offset",                                               group=g2)
-i_timeframe2    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g2)
+i_type_2        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g2, display=display.none)
+i_length2       = input.int         (50,    "Length", 1,                                            group=g2, display=display.none)
+i_source2       = input             (close, "Source",                                               group=g2, display=display.none)
+i_offset2       = input.int         (0,     "Offset",                                               group=g2, display=display.none)
+i_timeframe2    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g2, display=display.none)
 
-i_type_3        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g3)
-i_length3       = input.int         (200,    "Length", 1,                                            group=g3)
-i_source3       = input             (close, "Source",                                               group=g3)
-i_offset3       = input.int         (0,     "Offset",                                               group=g3)
-i_timeframe3    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g3)
+i_type_3        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g3, display=display.none)
+i_length3       = input.int         (200,    "Length", 1,                                            group=g3, display=display.none)
+i_source3       = input             (close, "Source",                                               group=g3, display=display.none)
+i_offset3       = input.int         (0,     "Offset",                                               group=g3, display=display.none)
+i_timeframe3    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g3, display=display.none)
 
-i_type_4        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g4)
-i_length4       = input.int         (200,   "Length", 1,                                            group=g4)
-i_source4       = input             (close, "Source",                                               group=g4)
-i_offset4       = input.int         (0,     "Offset",                                               group=g4)
-i_timeframe4    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g4)
+i_type_4        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g4, display=display.none)
+i_length4       = input.int         (200,   "Length", 1,                                            group=g4, display=display.none)
+i_source4       = input             (close, "Source",                                               group=g4, display=display.none)
+i_offset4       = input.int         (0,     "Offset",                                               group=g4, display=display.none)
+i_timeframe4    = input.timeframe   ("",    "Timeframe", tooltip=tt_timeframe,                      group=g4, display=display.none)
 
 
 // Hourly MAs
-i_type_5        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g5)
-i_length5       = input.int         (21,    "Length", 1,                                            group=g5)
-i_source5       = input             (close, "Source",                                               group=g5)
-i_offset5       = input.int         (0,     "Offset",                                               group=g5)
-i_timeframe5    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g5)
+i_type_5        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g5, display=display.none)
+i_length5       = input.int         (21,    "Length", 1,                                            group=g5, display=display.none)
+i_source5       = input             (close, "Source",                                               group=g5, display=display.none)
+i_offset5       = input.int         (0,     "Offset",                                               group=g5, display=display.none)
+i_timeframe5    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g5, display=display.none)
 
-i_type_6        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g6)
-i_length6       = input.int         (200,   "Length", 1,                                            group=g6)
-i_source6       = input             (close, "Source",                                               group=g6)
-i_offset6       = input.int         (0,     "Offset",                                               group=g6)
-i_timeframe6    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g6)
-i_show6         = input.bool        (false, "Show",                                                 group=g6)
+i_type_6        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g6, display=display.none)
+i_length6       = input.int         (200,   "Length", 1,                                            group=g6, display=display.none)
+i_source6       = input             (close, "Source",                                               group=g6, display=display.none)
+i_offset6       = input.int         (0,     "Offset",                                               group=g6, display=display.none)
+i_timeframe6    = input.timeframe   ("60",  "Timeframe", tooltip=tt_timeframe,                      group=g6, display=display.none)
+i_show6         = input.bool        (false, "Show",                                                 group=g6, display=display.none)
 
 // Daily MAs
-i_type_7        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g7)
-i_length7       = input.int         (21,    "Length", 1,                                            group=g7)
-i_source7       = input             (close, "Source",                                               group=g7)
-i_offset7       = input.int         (0,     "Offset",                                               group=g7)
-i_timeframe7    = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g7)
-i_show7         = input.bool        (false, "Show",                                                 group=g7)
+i_type_7        = input.string      ("EMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g7, display=display.none)
+i_length7       = input.int         (21,    "Length", 1,                                            group=g7, display=display.none)
+i_source7       = input             (close, "Source",                                               group=g7, display=display.none)
+i_offset7       = input.int         (0,     "Offset",                                               group=g7, display=display.none)
+i_timeframe7    = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g7, display=display.none)
+i_show7         = input.bool        (false, "Show",                                                 group=g7, display=display.none)
 
-i_type_8        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g8)
-i_length8       = input.int         (200,   "Length", 1,                                            group=g8)
-i_source8       = input             (close, "Source",                                               group=g8)
-i_offset8       = input.int         (0,     "Offset",                                               group=g8)
-i_timeframe8    = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g8)
-i_show8         = input.bool        (false, "Show",                                                 group=g8)
+i_type_8        = input.string      ("SMA", "Type", ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"],    group=g8, display=display.none)
+i_length8       = input.int         (200,   "Length", 1,                                            group=g8, display=display.none)
+i_source8       = input             (close, "Source",                                               group=g8, display=display.none)
+i_offset8       = input.int         (0,     "Offset",                                               group=g8, display=display.none)
+i_timeframe8    = input.timeframe   ("D",   "Timeframe", tooltip=tt_timeframe,                      group=g8, display=display.none)
+i_show8         = input.bool        (false, "Show",                                                 group=g8, display=display.none)
 
-i_enableGaps    = input             (true,  "Wait for timeframe closes",                            group=g9)
+i_enableGaps    = input             (true,  "Wait for timeframe closes",                            group=g9, display=display.none)
 
 //#endregion
 
@@ -180,20 +180,20 @@ vwap = ta.vwap(close)
 //--------------------------------------------------------------------
 
 // Plot VWAP
-plot(vwap, "VWAP", DEFAULT_COLOR_VWAP, DEFAULT_LINEWIDTH, style=plot.style_circles)
+plot(vwap, "VWAP", DEFAULT_COLOR_VWAP, DEFAULT_LINEWIDTH, style=plot.style_circles, display=display.all - display.status_line)
 
 // Plot MAs
-plot(f_canDisplay(i_timeframe1) ? ma1 : na, "MA #1", DEFAULT_COLOR1, DEFAULT_LINEWIDTH, offset=i_offset1)
-plot(f_canDisplay(i_timeframe2) ? ma2 : na, "MA #2", DEFAULT_COLOR2, DEFAULT_LINEWIDTH, offset=i_offset2)
-plot(f_canDisplay(i_timeframe3) ? ma3 : na, "MA #3", DEFAULT_COLOR3, DEFAULT_LINEWIDTH, offset=i_offset3)
-plot(f_canDisplay(i_timeframe4) ? ma4 : na, "MA #4", DEFAULT_COLOR4, DEFAULT_LINEWIDTH, offset=i_offset4)
+plot(f_canDisplay(i_timeframe1) ? ma1 : na, "MA #1", DEFAULT_COLOR1, DEFAULT_LINEWIDTH, offset=i_offset1, display=display.all - display.status_line)
+plot(f_canDisplay(i_timeframe2) ? ma2 : na, "MA #2", DEFAULT_COLOR2, DEFAULT_LINEWIDTH, offset=i_offset2, display=display.all - display.status_line)
+plot(f_canDisplay(i_timeframe3) ? ma3 : na, "MA #3", DEFAULT_COLOR3, DEFAULT_LINEWIDTH, offset=i_offset3, display=display.all - display.status_line)
+plot(f_canDisplay(i_timeframe4) ? ma4 : na, "MA #4", DEFAULT_COLOR4, DEFAULT_LINEWIDTH, offset=i_offset4, display=display.all - display.status_line)
 
 // Plot hourly MAs
-plot(f_canDisplay(i_timeframe5) ? ma5 : na, "Hourly Fast MA", DEFAULT_COLOR5, DEFAULT_LINEWIDTH, offset=i_offset5)
-plot(f_canDisplay(i_timeframe6) and i_show6 ? ma6 : na, "Hourly Slow MA", DEFAULT_COLOR6, DEFAULT_LINEWIDTH, offset=i_offset6)
+plot(f_canDisplay(i_timeframe5) ? ma5 : na, "Hourly Fast MA", DEFAULT_COLOR5, DEFAULT_LINEWIDTH, offset=i_offset5, display=display.all - display.status_line)
+plot(f_canDisplay(i_timeframe6) and i_show6 ? ma6 : na, "Hourly Slow MA", DEFAULT_COLOR6, DEFAULT_LINEWIDTH, offset=i_offset6, display=display.all - display.status_line)
 
 // Plot daily MAs
-plot(f_canDisplay(i_timeframe7) and i_show7 ? ma7 : na, "Daily Fast MA", DEFAULT_COLOR7, DEFAULT_LINEWIDTH, offset=i_offset7)
-plot(f_canDisplay(i_timeframe8) and i_show8 ? ma8 : na, "Daily Slow MA", DEFAULT_COLOR8, DEFAULT_LINEWIDTH, offset=i_offset8)
+plot(f_canDisplay(i_timeframe7) and i_show7 ? ma7 : na, "Daily Fast MA", DEFAULT_COLOR7, DEFAULT_LINEWIDTH, offset=i_offset7, display=display.all - display.status_line)
+plot(f_canDisplay(i_timeframe8) and i_show8 ? ma8 : na, "Daily Slow MA", DEFAULT_COLOR8, DEFAULT_LINEWIDTH, offset=i_offset8, display=display.all - display.status_line)
 
 //#endregion
