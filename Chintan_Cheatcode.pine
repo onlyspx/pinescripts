@@ -1,0 +1,89 @@
+// This Pine Script(TM) code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Chintan
+
+// @version=6
+indicator("Chintan Cheatcode", shorttitle="Chintan Cheatcode", overlay=true)
+
+
+//--------------------------------------------------------------------
+//#region                        Inputs
+//--------------------------------------------------------------------
+
+g_vwap         = "VWAP"
+g_hourly       = "Hourly 20 SMA"
+g_daily_5      = "Daily 5 SMA"
+g_daily_20     = "Daily 20 SMA"
+g_daily_50     = "Daily 50 SMA"
+g_daily_200    = "Daily 200 SMA"
+g_preferences  = "Preferences"
+
+tt_timeframe = "Higher-timeframe lines are automatically hidden when the chart timeframe is above their source timeframe."
+
+i_showVwap        = input.bool(true, "Show", group=g_vwap, display=display.none)
+i_colorVwap       = input.color(color.new(#FF69B4, 0), "Color", group=g_vwap, display=display.none)
+
+i_showHourly20    = input.bool(true, "Show", group=g_hourly, tooltip=tt_timeframe, display=display.none)
+i_colorHourly20   = input.color(color.new(#FFFF00, 0), "Color", group=g_hourly, display=display.none)
+
+i_showDaily5      = input.bool(true, "Show", group=g_daily_5, tooltip=tt_timeframe, display=display.none)
+i_colorDaily5     = input.color(color.new(#d9e7ff, 0), "Color", group=g_daily_5, display=display.none)
+
+i_showDaily20     = input.bool(true, "Show", group=g_daily_20, tooltip=tt_timeframe, display=display.none)
+i_colorDaily20    = input.color(color.new(#a4c2f4, 0), "Color", group=g_daily_20, display=display.none)
+
+i_showDaily50     = input.bool(true, "Show", group=g_daily_50, tooltip=tt_timeframe, display=display.none)
+i_colorDaily50    = input.color(color.new(#6d9eeb, 0), "Color", group=g_daily_50, display=display.none)
+
+i_showDaily200    = input.bool(true, "Show", group=g_daily_200, tooltip=tt_timeframe, display=display.none)
+i_colorDaily200   = input.color(color.new(#1c4587, 0), "Color", group=g_daily_200, display=display.none)
+
+i_waitForCloses   = input.bool(true, "Wait for timeframe closes", group=g_preferences, display=display.none)
+
+//#endregion
+
+
+//--------------------------------------------------------------------
+//#region                       Functions
+//--------------------------------------------------------------------
+
+f_canDisplay(string _tf) =>
+    timeframe.in_seconds(_tf) >= timeframe.in_seconds()
+
+f_getHtfSma(string _tf, int _length) =>
+    i_waitForCloses ?
+         request.security(syminfo.tickerid, _tf, ta.sma(close, _length)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on) :
+         request.security(syminfo.tickerid, _tf, ta.sma(close, _length), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+//#endregion
+
+
+//--------------------------------------------------------------------
+//#region                         Logic
+//--------------------------------------------------------------------
+
+vwap = ta.vwap(close)
+
+hourly20 = f_getHtfSma("60", 20)
+
+daily5 = f_getHtfSma("D", 5)
+daily20 = f_getHtfSma("D", 20)
+daily50 = f_getHtfSma("D", 50)
+daily200 = f_getHtfSma("D", 200)
+
+//#endregion
+
+
+//--------------------------------------------------------------------
+//#region                   Plotting & styling
+//--------------------------------------------------------------------
+
+plot(i_showVwap ? vwap : na, "VWAP", i_colorVwap, 1, style=plot.style_circles, display=display.all - display.status_line)
+
+plot(i_showHourly20 and f_canDisplay("60") ? hourly20 : na, "Hourly 20 SMA", i_colorHourly20, 1, display=display.all - display.status_line)
+
+plot(i_showDaily5 and f_canDisplay("D") ? daily5 : na, "Daily 5 SMA", i_colorDaily5, 1, display=display.all - display.status_line)
+plot(i_showDaily20 and f_canDisplay("D") ? daily20 : na, "Daily 20 SMA", i_colorDaily20, 1, display=display.all - display.status_line)
+plot(i_showDaily50 and f_canDisplay("D") ? daily50 : na, "Daily 50 SMA", i_colorDaily50, 1, display=display.all - display.status_line)
+plot(i_showDaily200 and f_canDisplay("D") ? daily200 : na, "Daily 200 SMA", i_colorDaily200, 1, display=display.all - display.status_line)
+
+//#endregion

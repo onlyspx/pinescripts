@@ -17,6 +17,17 @@ Multi-timeframe moving average indicator with VWAP integration.
 - Customizable source and offset settings
 - Smart timeframe handling
 
+## Chintan Cheatcode
+
+Focused multi-timeframe overlay for a specific cheatcode stack.
+
+### Features
+- VWAP in the same pink style used by FPL Cheatcode
+- Hourly 20 SMA in the FPL yellow family for quick separation
+- Daily 5, 20, 50, and 200 SMA in a blue gradient from light to dark
+- Optional higher-timeframe close confirmation via `Wait for timeframe closes`
+- Automatic hiding when the chart timeframe is above the source timeframe
+
 ## SR Levels
 
 Support and resistance level visualizer for multiple symbols.
