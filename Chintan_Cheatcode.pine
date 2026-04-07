@@ -15,6 +15,8 @@ g_daily_5      = "Daily 5 SMA"
 g_daily_20     = "Daily 20 SMA"
 g_daily_50     = "Daily 50 SMA"
 g_daily_200    = "Daily 200 SMA"
+g_atr          = "ATR Levels"
+g_prior_day    = "Prior Day Levels"
 g_preferences  = "Preferences"
 
 tt_timeframe = "Higher-timeframe lines are automatically hidden when the chart timeframe is above their source timeframe."
@@ -36,6 +38,16 @@ i_colorDaily50    = input.color(color.new(#6d9eeb, 0), "Color", group=g_daily_50
 
 i_showDaily200    = input.bool(true, "Show", group=g_daily_200, tooltip=tt_timeframe, display=display.none)
 i_colorDaily200   = input.color(color.new(#1c4587, 0), "Color", group=g_daily_200, display=display.none)
+
+i_showAtrLevels   = input.bool(true, "Show", group=g_atr, tooltip=tt_timeframe, display=display.none)
+i_atrLength       = input.int(14, "ATR Length", minval=1, group=g_atr, display=display.none)
+i_colorAtrUp      = input.color(color.new(#00E5FF, 0), "+1 ATR Color", group=g_atr, display=display.none)
+i_colorAtrDown    = input.color(color.new(#FFD54F, 0), "-1 ATR Color", group=g_atr, display=display.none)
+i_showAtrTable    = input.bool(true, "Show ATR Table", group=g_atr, display=display.none)
+
+i_showPriorDay    = input.bool(true, "Show", group=g_prior_day, tooltip=tt_timeframe, display=display.none)
+i_colorPriorHigh  = input.color(color.new(#66BB6A, 0), "Prior Day High Color", group=g_prior_day, display=display.none)
+i_colorPriorLow   = input.color(color.new(#EF5350, 0), "Prior Day Low Color", group=g_prior_day, display=display.none)
 
 i_waitForCloses   = input.bool(true, "Wait for timeframe closes", group=g_preferences, display=display.none)
 
@@ -70,6 +82,31 @@ daily20 = f_getHtfSma("D", 20)
 daily50 = f_getHtfSma("D", 50)
 daily200 = f_getHtfSma("D", 200)
 
+atrTicker = ticker.new(syminfo.prefix, syminfo.ticker, session=session.extended)
+atrBase = i_waitForCloses ?
+     request.security(atrTicker, "D", close[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on) :
+     request.security(atrTicker, "D", close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+atrValue = i_waitForCloses ?
+     request.security(atrTicker, "D", ta.atr(i_atrLength)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on) :
+     request.security(atrTicker, "D", ta.atr(i_atrLength), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+atrPlus1 = atrBase + atrValue
+atrMinus1 = atrBase - atrValue
+
+priorDayHigh = request.security(syminfo.tickerid, "D", high[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+priorDayLow = request.security(syminfo.tickerid, "D", low[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+showDailyLevels = f_canDisplay("D")
+newDay = ta.change(time("D")) != 0
+barsSinceDayStart = nz(ta.barssince(newDay), 0)
+dayStartIndex = bar_index - barsSinceDayStart
+
+var line atrPlus1Line = na
+var line atrMinus1Line = na
+var line priorDayHighLine = na
+var line priorDayLowLine = na
+var table atrTable = table.new(position.top_right, 2, 1)
+
 //#endregion
 
 
@@ -85,5 +122,69 @@ plot(i_showDaily5 and f_canDisplay("D") ? daily5 : na, "Daily 5 SMA", i_colorDai
 plot(i_showDaily20 and f_canDisplay("D") ? daily20 : na, "Daily 20 SMA", i_colorDaily20, 1, display=display.all - display.status_line)
 plot(i_showDaily50 and f_canDisplay("D") ? daily50 : na, "Daily 50 SMA", i_colorDaily50, 1, display=display.all - display.status_line)
 plot(i_showDaily200 and f_canDisplay("D") ? daily200 : na, "Daily 200 SMA", i_colorDaily200, 1, display=display.all - display.status_line)
+
+if i_showAtrLevels and showDailyLevels and not na(atrPlus1)
+    if na(atrPlus1Line)
+        atrPlus1Line := line.new(dayStartIndex, atrPlus1, bar_index + 1, atrPlus1, xloc=xloc.bar_index, extend=extend.right, color=i_colorAtrUp, style=line.style_dashed, width=2)
+    else
+        line.set_xy1(atrPlus1Line, dayStartIndex, atrPlus1)
+        line.set_xy2(atrPlus1Line, bar_index + 1, atrPlus1)
+        line.set_color(atrPlus1Line, i_colorAtrUp)
+        line.set_style(atrPlus1Line, line.style_dashed)
+        line.set_width(atrPlus1Line, 2)
+        line.set_extend(atrPlus1Line, extend.right)
+else if not na(atrPlus1Line)
+    line.delete(atrPlus1Line)
+    atrPlus1Line := na
+
+if i_showAtrLevels and showDailyLevels and not na(atrMinus1)
+    if na(atrMinus1Line)
+        atrMinus1Line := line.new(dayStartIndex, atrMinus1, bar_index + 1, atrMinus1, xloc=xloc.bar_index, extend=extend.right, color=i_colorAtrDown, style=line.style_dashed, width=2)
+    else
+        line.set_xy1(atrMinus1Line, dayStartIndex, atrMinus1)
+        line.set_xy2(atrMinus1Line, bar_index + 1, atrMinus1)
+        line.set_color(atrMinus1Line, i_colorAtrDown)
+        line.set_style(atrMinus1Line, line.style_dashed)
+        line.set_width(atrMinus1Line, 2)
+        line.set_extend(atrMinus1Line, extend.right)
+else if not na(atrMinus1Line)
+    line.delete(atrMinus1Line)
+    atrMinus1Line := na
+
+if i_showPriorDay and showDailyLevels and not na(priorDayHigh)
+    if na(priorDayHighLine)
+        priorDayHighLine := line.new(dayStartIndex, priorDayHigh, bar_index + 1, priorDayHigh, xloc=xloc.bar_index, extend=extend.right, color=i_colorPriorHigh, style=line.style_dotted, width=2)
+    else
+        line.set_xy1(priorDayHighLine, dayStartIndex, priorDayHigh)
+        line.set_xy2(priorDayHighLine, bar_index + 1, priorDayHigh)
+        line.set_color(priorDayHighLine, i_colorPriorHigh)
+        line.set_style(priorDayHighLine, line.style_dotted)
+        line.set_width(priorDayHighLine, 2)
+        line.set_extend(priorDayHighLine, extend.right)
+else if not na(priorDayHighLine)
+    line.delete(priorDayHighLine)
+    priorDayHighLine := na
+
+if i_showPriorDay and showDailyLevels and not na(priorDayLow)
+    if na(priorDayLowLine)
+        priorDayLowLine := line.new(dayStartIndex, priorDayLow, bar_index + 1, priorDayLow, xloc=xloc.bar_index, extend=extend.right, color=i_colorPriorLow, style=line.style_dotted, width=2)
+    else
+        line.set_xy1(priorDayLowLine, dayStartIndex, priorDayLow)
+        line.set_xy2(priorDayLowLine, bar_index + 1, priorDayLow)
+        line.set_color(priorDayLowLine, i_colorPriorLow)
+        line.set_style(priorDayLowLine, line.style_dotted)
+        line.set_width(priorDayLowLine, 2)
+        line.set_extend(priorDayLowLine, extend.right)
+else if not na(priorDayLowLine)
+    line.delete(priorDayLowLine)
+    priorDayLowLine := na
+
+if barstate.islast
+    if i_showAtrLevels and i_showAtrTable and showDailyLevels and not na(atrPlus1) and not na(atrMinus1)
+        table.cell(atrTable, 0, 0, "+1 ATR " + str.tostring(atrPlus1, format.mintick), bgcolor=color.new(i_colorAtrUp, 15), text_color=color.black)
+        table.cell(atrTable, 1, 0, "-1 ATR " + str.tostring(atrMinus1, format.mintick), bgcolor=color.new(i_colorAtrDown, 15), text_color=color.black)
+    else
+        table.cell(atrTable, 0, 0, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
+        table.cell(atrTable, 1, 0, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
 
 //#endregion
