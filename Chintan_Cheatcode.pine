@@ -57,10 +57,16 @@ i_colorAtrUp      = input.color(color.new(#00E5FF, 0), "+1 ATR Color", group=g_a
 i_colorAtrDown    = input.color(color.new(#FFD54F, 0), "-1 ATR Color", group=g_atr, display=display.none)
 i_showAtrTable    = input.bool(true, "Show ATR Table", group=g_atr, display=display.none)
 i_showMaTable     = input.bool(true, "Show MA Table", group=g_atr, display=display.none)
+i_rvolPeriod      = input.int(5, "RVOL Lookback Days", minval=1, maxval=10, group=g_atr, display=display.none)
 
 i_showPriorDay    = input.bool(true, "Show", group=g_prior_day, tooltip=tt_timeframe, display=display.none)
 i_colorPriorHigh  = input.color(color.new(#66BB6A, 0), "Prior Day High Color", group=g_prior_day, display=display.none)
 i_colorPriorLow   = input.color(color.new(#EF5350, 0), "Prior Day Low Color", group=g_prior_day, display=display.none)
+
+g_prior_week      = "Prior Week"
+i_showPriorWeek   = input.bool(true, "Show", group=g_prior_week, display=display.none)
+i_colorPriorWeekH = input.color(color.new(#66BB6A, 0), "Prior Week High Color", group=g_prior_week, display=display.none)
+i_colorPriorWeekL = input.color(color.new(#EF5350, 0), "Prior Week Low Color",  group=g_prior_week, display=display.none)
 
 g_first_hour        = "First Hour Range"
 tt_firstHour        = "First-hour range is shown on intraday charts up to 60 minutes."
@@ -69,6 +75,7 @@ i_colorFirstHourBox = input.color(color.new(#90A4AE, 0), "Box Color", group=g_fi
 i_showFirstHourText = input.bool(true, "Show 1HR Range Text", group=g_first_hour, tooltip=tt_firstHour, display=display.none)
 
 i_waitForCloses   = input.bool(true, "Wait for timeframe closes", group=g_preferences, display=display.none)
+i_showKeyTimes    = input.bool(true, "Show Key Time Markers", group=g_preferences, display=display.none)
 
 //#endregion
 
@@ -146,8 +153,12 @@ atrValue = i_waitForCloses ?
 atrPlus1 = atrBase + atrValue
 atrMinus1 = atrBase - atrValue
 
-priorDayHigh = request.security(syminfo.tickerid, "D", high[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-priorDayLow = request.security(syminfo.tickerid, "D", low[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+priorDayHigh  = request.security(syminfo.tickerid, "D", high[1],  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+priorDayLow   = request.security(syminfo.tickerid, "D", low[1],   gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+priorDayClose = request.security(syminfo.tickerid, "D", close[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+todayOpen     = request.security(syminfo.tickerid, "D", open,     gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+priorWeekHigh = request.security(syminfo.tickerid, "W", high[1],  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+priorWeekLow  = request.security(syminfo.tickerid, "W", low[1],   gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
 hrHigh = request.security(syminfo.tickerid, "60", high, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 hrLow  = request.security(syminfo.tickerid, "60", low,  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
@@ -169,12 +180,54 @@ newDay = ta.change(time("D")) != 0
 barsSinceDayStart = nz(ta.barssince(newDay), 0)
 dayStartIndex = bar_index - barsSinceDayStart
 
+rvolSessLen  = 390  // 9:30–4:00 ET = 390 min, no midnight crossing for SPX
+var float[] rvolVols = array.new_float(rvolSessLen * 11, 0.0)  // max 10 days + current = 4,290 elements
+
+// Opening gap + fill
+gapSize    = not na(todayOpen) and not na(priorDayClose) ? todayOpen - priorDayClose : na
+gapFillPct = 0.0
+if not na(gapSize) and gapSize > 0
+    gapFillPct := math.min(100, (todayOpen - close) / gapSize * 100)
+else if not na(gapSize) and gapSize < 0
+    gapFillPct := math.min(100, (close - todayOpen) / math.abs(gapSize) * 100)
+
+// Relative volume — session-relative slots (fast: 390 slots/day vs 2880, 4290 elements vs 60480)
+// Uses ET hour/minute to compute session-relative slot (0=9:30, 389=15:59)
+inRvolSess = not na(time(timeframe.period, "0930-1600:23456", "America/New_York"))
+rvolEtHour = hour(time, "America/New_York")
+rvolEtMin  = minute(time, "America/New_York")
+rvolSlot   = math.max(0, math.min(rvolEtHour * 60 + rvolEtMin - 570, rvolSessLen - 1))  // 570 = 9*60+30
+
+if newDay
+    for _i = 1 to rvolSessLen
+        array.shift(rvolVols)
+        array.push(rvolVols, 0.0)
+
+if inRvolSess
+    rvolIdx = i_rvolPeriod * rvolSessLen + rvolSlot
+    array.set(rvolVols, rvolIdx, newDay ? volume : array.get(rvolVols, i_rvolPeriod * rvolSessLen + rvolSlot[1]) + volume)
+
+rvolCalc() =>
+    hvol      = 0.0
+    validDays = 0
+    for x = 0 to i_rvolPeriod - 1
+        svol = array.get(rvolVols, x * rvolSessLen + rvolSlot)
+        if svol > 0.0
+            hvol      += svol
+            validDays += 1
+    cvol = array.get(rvolVols, i_rvolPeriod * rvolSessLen + rvolSlot)
+    validDays > 0 ? cvol / (hvol / validDays) : na
+
+rvol = timeframe.isintraday ? rvolCalc() : na
+
 var line atrPlus1Line = na
 var line atrMinus1Line = na
-var line priorDayHighLine = na
-var line priorDayLowLine = na
+var line priorDayHighLine  = na
+var line priorDayLowLine   = na
+var line priorWeekHighLine = na
+var line priorWeekLowLine  = na
 var box  firstHourBox = na
-var table atrTable = table.new(position.top_right,    3, 2)
+var table atrTable = table.new(position.top_right,    3, 3)
 var table maTable  = table.new(position.bottom_right, 2, 5)
 
 //#endregion
@@ -286,6 +339,34 @@ else if not na(priorDayLowLine)
     line.delete(priorDayLowLine)
     priorDayLowLine := na
 
+if i_showPriorWeek and showDailyLevels and not na(priorWeekHigh)
+    if na(priorWeekHighLine)
+        priorWeekHighLine := line.new(dayStartIndex, priorWeekHigh, bar_index + 1, priorWeekHigh, xloc=xloc.bar_index, extend=extend.right, color=i_colorPriorWeekH, style=line.style_dashed, width=1)
+    else
+        line.set_xy1(priorWeekHighLine, dayStartIndex, priorWeekHigh)
+        line.set_xy2(priorWeekHighLine, bar_index + 1, priorWeekHigh)
+        line.set_color(priorWeekHighLine, i_colorPriorWeekH)
+        line.set_style(priorWeekHighLine, line.style_dashed)
+        line.set_width(priorWeekHighLine, 1)
+        line.set_extend(priorWeekHighLine, extend.right)
+else if not na(priorWeekHighLine)
+    line.delete(priorWeekHighLine)
+    priorWeekHighLine := na
+
+if i_showPriorWeek and showDailyLevels and not na(priorWeekLow)
+    if na(priorWeekLowLine)
+        priorWeekLowLine := line.new(dayStartIndex, priorWeekLow, bar_index + 1, priorWeekLow, xloc=xloc.bar_index, extend=extend.right, color=i_colorPriorWeekL, style=line.style_dashed, width=1)
+    else
+        line.set_xy1(priorWeekLowLine, dayStartIndex, priorWeekLow)
+        line.set_xy2(priorWeekLowLine, bar_index + 1, priorWeekLow)
+        line.set_color(priorWeekLowLine, i_colorPriorWeekL)
+        line.set_style(priorWeekLowLine, line.style_dashed)
+        line.set_width(priorWeekLowLine, 1)
+        line.set_extend(priorWeekLowLine, extend.right)
+else if not na(priorWeekLowLine)
+    line.delete(priorWeekLowLine)
+    priorWeekLowLine := na
+
 if barstate.islast
     // Top-right table: 3 cols x 2 rows
     if i_showAtrTable and not na(priorDayHigh) and not na(priorDayLow) and not na(atrValue)
@@ -303,26 +384,83 @@ if barstate.islast
         pdhPdlLabel = close > priorDayHigh ? "Above PDH" : close < priorDayLow ? "Below PDL" : "In Prior Day Range"
         pdhPdlColor = close > priorDayHigh ? color.new(color.green, 15) : close < priorDayLow ? color.new(color.red, 15) : color.new(#B8860B, 15)
         table.cell(atrTable, 2, 1, pdhPdlLabel, bgcolor=pdhPdlColor, text_color=color.black)
+        // Row 2: Gap | Fill | RVOL
+        gapStr   = not na(gapSize) ? "Gap: " + str.tostring(gapSize, format.mintick) : "Gap: N/A"
+        gapColor = not na(gapSize) ? (gapSize > 0 ? color.new(color.green, 15) : gapSize < 0 ? color.new(color.red, 15) : color.new(color.gray, 50)) : color.new(color.gray, 50)
+        table.cell(atrTable, 0, 2, gapStr, bgcolor=gapColor, text_color=color.black)
+        fillStr   = not na(gapFillPct) ? "Fill: " + str.tostring(gapFillPct, "#") + "%" : "Fill: N/A"
+        fillColor = not na(gapFillPct) ? (gapFillPct >= 75 ? color.new(color.green, 15) : gapFillPct >= 40 ? color.new(#FFB74D, 15) : color.new(color.red, 15)) : color.new(color.gray, 50)
+        table.cell(atrTable, 1, 2, fillStr, bgcolor=fillColor, text_color=color.black)
+        rvolStr   = not na(rvol) ? "RVOL: " + str.tostring(rvol, "#.##") + "x" : "RVOL: N/A"
+        rvolColor = not na(rvol) ? (rvol >= 1.0 ? color.new(color.green, 15) : color.new(color.gray, 50)) : color.new(color.gray, 50)
+        table.cell(atrTable, 2, 2, rvolStr, bgcolor=rvolColor, text_color=color.black)
     else
-        for r = 0 to 1
+        for r = 0 to 2
             for c = 0 to 2
                 table.cell(atrTable, c, r, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
 
-    // Bottom-right table: 2 cols x 4 rows (col 0 = VWAPs, col 1 = SMAs)
-    if i_showMaTable and not na(vwap) and not na(vwap_2day) and not na(vwap_wtd) and not na(vwap_mtd) and not na(daily5) and not na(daily20) and not na(daily50) and not na(daily200)
-        table.cell(maTable, 0, 0, "VWAP", bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
-        table.cell(maTable, 1, 0, "SMA",  bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
-        table.cell(maTable, 0, 1, "1D  " + str.tostring(vwap,      format.mintick), bgcolor=color.new(close > vwap      ? color.green : color.red, 25), text_color=color.black)
-        table.cell(maTable, 0, 2, "2D  " + str.tostring(vwap_2day, format.mintick), bgcolor=color.new(close > vwap_2day  ? color.green : color.red, 25), text_color=color.black)
-        table.cell(maTable, 0, 3, "WTD " + str.tostring(vwap_wtd,  format.mintick), bgcolor=color.new(close > vwap_wtd   ? color.green : color.red, 25), text_color=color.black)
-        table.cell(maTable, 0, 4, "MTD " + str.tostring(vwap_mtd,  format.mintick), bgcolor=color.new(close > vwap_mtd   ? color.green : color.red, 25), text_color=color.black)
-        table.cell(maTable, 1, 1, "5D  " + str.tostring(daily5,   format.mintick), bgcolor=color.new(close > daily5   ? color.green : color.red, 25), text_color=color.black)
-        table.cell(maTable, 1, 2, "20D " + str.tostring(daily20,  format.mintick), bgcolor=color.new(close > daily20  ? color.green : color.red, 25), text_color=color.black)
-        table.cell(maTable, 1, 3, "50D " + str.tostring(daily50,  format.mintick), bgcolor=color.new(close > daily50  ? color.green : color.red, 25), text_color=color.black)
-        table.cell(maTable, 1, 4, "200D" + str.tostring(daily200, format.mintick), bgcolor=color.new(close > daily200 ? color.green : color.red, 25), text_color=color.black)
+    // Bottom-right table: 2 cols x 5 rows (col 0 = VWAPs, col 1 = SMAs — independent)
+    if i_showMaTable
+        hasVwap = not na(vwap) and not na(vwap_2day) and not na(vwap_wtd) and not na(vwap_mtd)
+        hasSma  = not na(daily5) and not na(daily20) and not na(daily50) and not na(daily200)
+        // Header row
+        table.cell(maTable, 0, 0, hasVwap ? "VWAP" : "", bgcolor=color.new(#222222, hasVwap ? 15 : 100), text_color=color.new(#888888, 0))
+        table.cell(maTable, 1, 0, hasSma  ? "SMA"  : "", bgcolor=color.new(#222222, hasSma  ? 15 : 100), text_color=color.new(#888888, 0))
+        // VWAP col
+        if hasVwap
+            table.cell(maTable, 0, 1, "1D  " + str.tostring(vwap,      format.mintick), bgcolor=color.new(close > vwap      ? color.green : color.red, 25), text_color=color.black)
+            table.cell(maTable, 0, 2, "2D  " + str.tostring(vwap_2day, format.mintick), bgcolor=color.new(close > vwap_2day  ? color.green : color.red, 25), text_color=color.black)
+            table.cell(maTable, 0, 3, "WTD " + str.tostring(vwap_wtd,  format.mintick), bgcolor=color.new(close > vwap_wtd   ? color.green : color.red, 25), text_color=color.black)
+            table.cell(maTable, 0, 4, "MTD " + str.tostring(vwap_mtd,  format.mintick), bgcolor=color.new(close > vwap_mtd   ? color.green : color.red, 25), text_color=color.black)
+        else
+            for r = 1 to 4
+                table.cell(maTable, 0, r, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
+        // SMA col
+        if hasSma
+            table.cell(maTable, 1, 1, "5D  " + str.tostring(daily5,   format.mintick), bgcolor=color.new(close > daily5   ? color.green : color.red, 25), text_color=color.black)
+            table.cell(maTable, 1, 2, "20D " + str.tostring(daily20,  format.mintick), bgcolor=color.new(close > daily20  ? color.green : color.red, 25), text_color=color.black)
+            table.cell(maTable, 1, 3, "50D " + str.tostring(daily50,  format.mintick), bgcolor=color.new(close > daily50  ? color.green : color.red, 25), text_color=color.black)
+            table.cell(maTable, 1, 4, "200D" + str.tostring(daily200, format.mintick), bgcolor=color.new(close > daily200 ? color.green : color.red, 25), text_color=color.black)
+        else
+            for r = 1 to 4
+                table.cell(maTable, 1, r, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
     else
         for r = 0 to 4
             for c = 0 to 1
                 table.cell(maTable, c, r, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
+
+// Key intraday time markers
+keyTZ     = "America/New_York"
+in1030 = timeframe.isintraday and not na(time(timeframe.period, "1030-1031:23456", keyTZ))
+in1130 = timeframe.isintraday and not na(time(timeframe.period, "1130-1131:23456", keyTZ))
+in1200 = timeframe.isintraday and not na(time(timeframe.period, "1200-1201:23456", keyTZ))
+in1400 = timeframe.isintraday and not na(time(timeframe.period, "1400-1401:23456", keyTZ))
+in1500 = timeframe.isintraday and not na(time(timeframe.period, "1500-1501:23456", keyTZ))
+in1550 = timeframe.isintraday and not na(time(timeframe.period, "1550-1551:23456", keyTZ))
+
+at1030 = i_showKeyTimes and in1030 and not in1030[1]
+at1130 = i_showKeyTimes and in1130 and not in1130[1]
+at1200 = i_showKeyTimes and in1200 and not in1200[1]
+at1400 = i_showKeyTimes and in1400 and not in1400[1]
+at1500 = i_showKeyTimes and in1500 and not in1500[1]
+at1550 = i_showKeyTimes and in1550 and not in1550[1]
+
+isKeyTime = at1030 or at1130 or at1200 or at1400 or at1500 or at1550
+bgcolor(isKeyTime ? color.new(color.gray, 80) : na, title="Key Time Marker")
+
+keyLabelColor = color.new(color.gray, 40)
+keyLabelStyle = label.style_none
+if at1030
+    label.new(bar_index, high, "End 1H",     color=color.new(color.black, 100), textcolor=keyLabelColor, style=keyLabelStyle, size=size.tiny, yloc=yloc.abovebar)
+if at1130
+    label.new(bar_index, high, "Euro Close", color=color.new(color.black, 100), textcolor=keyLabelColor, style=keyLabelStyle, size=size.tiny, yloc=yloc.abovebar)
+if at1200
+    label.new(bar_index, high, "Lunch",      color=color.new(color.black, 100), textcolor=keyLabelColor, style=keyLabelStyle, size=size.tiny, yloc=yloc.abovebar)
+if at1400
+    label.new(bar_index, high, "Bond Close", color=color.new(color.black, 100), textcolor=keyLabelColor, style=keyLabelStyle, size=size.tiny, yloc=yloc.abovebar)
+if at1500
+    label.new(bar_index, high, "Last Hour",  color=color.new(color.black, 100), textcolor=keyLabelColor, style=keyLabelStyle, size=size.tiny, yloc=yloc.abovebar)
+if at1550
+    label.new(bar_index, high, "MOC",        color=color.new(color.black, 100), textcolor=keyLabelColor, style=keyLabelStyle, size=size.tiny, yloc=yloc.abovebar)
 
 //#endregion
