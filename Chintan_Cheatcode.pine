@@ -174,7 +174,8 @@ var line atrMinus1Line = na
 var line priorDayHighLine = na
 var line priorDayLowLine = na
 var box  firstHourBox = na
-var table atrTable = table.new(position.top_right, 1, 16)
+var table atrTable = table.new(position.top_right,    3, 2)
+var table maTable  = table.new(position.bottom_right, 2, 5)
 
 //#endregion
 
@@ -286,50 +287,42 @@ else if not na(priorDayLowLine)
     priorDayLowLine := na
 
 if barstate.islast
-    // Info box (PDH/PDL + ATR + 1HR range rows)
+    // Top-right table: 3 cols x 2 rows
     if i_showAtrTable and not na(priorDayHigh) and not na(priorDayLow) and not na(atrValue)
-        // Row 0: Raw ATR value
-        table.cell(atrTable, 0, 0, "ATR = " + str.tostring(atrValue, "#.##"), bgcolor=color.new(color.gray, 50), text_color=color.white)
-        // Row 1: +1 ATR level
-        table.cell(atrTable, 0, 1, "+1 ATR  " + str.tostring(atrPlus1, format.mintick), bgcolor=color.new(i_colorAtrUp, 15), text_color=color.black)
-        // Row 2: -1 ATR level
-        table.cell(atrTable, 0, 2, "-1 ATR  " + str.tostring(atrMinus1, format.mintick), bgcolor=color.new(i_colorAtrDown, 15), text_color=color.black)
-        // Row 3: 1HR Range value
         firstHourRange = not na(firstHourHigh) and not na(firstHourLow) ? firstHourHigh - firstHourLow : na
-        hrRangeStr = not na(firstHourRange) ? "1HR Range = " + str.tostring(firstHourRange, format.mintick) : "1HR Range = N/A"
-        table.cell(atrTable, 0, 3, hrRangeStr, bgcolor=color.new(color.gray, 60), text_color=color.white)
-        // Row 4: 1HR Range inference
-        hrLabel = not na(firstHourHigh) ? (close > firstHourHigh ? "Above 1HR High = Bullish" : close < firstHourLow ? "Below 1HR Low = Bearish" : "Inside 1HR Range = Chop") : "1HR Range = N/A"
+        // Row 0: ATR | +1 | -1
+        table.cell(atrTable, 0, 0, "ATR = " + str.tostring(atrValue, "#.##"), bgcolor=color.new(color.gray, 50), text_color=color.white)
+        table.cell(atrTable, 1, 0, "+1: " + str.tostring(atrPlus1, format.mintick), bgcolor=color.new(i_colorAtrUp, 15), text_color=color.black)
+        table.cell(atrTable, 2, 0, "-1: " + str.tostring(atrMinus1, format.mintick), bgcolor=color.new(i_colorAtrDown, 15), text_color=color.black)
+        // Row 1: 1HR Range | 1HR inference | PDH/PDL
+        hrRangeStr = not na(firstHourRange) ? "1HR = " + str.tostring(firstHourRange, format.mintick) : "1HR = N/A"
+        table.cell(atrTable, 0, 1, hrRangeStr, bgcolor=color.new(color.gray, 60), text_color=color.white)
+        hrLabel = not na(firstHourHigh) ? (close > firstHourHigh ? "Above 1HR = Bullish" : close < firstHourLow ? "Below 1HR = Bearish" : "Inside 1HR = Chop") : "1HR = N/A"
         hrColor = not na(firstHourHigh) ? (close > firstHourHigh ? color.new(#66BB6A, 15) : close < firstHourLow ? color.new(#EF5350, 15) : color.new(#FFB74D, 15)) : color.new(color.gray, 50)
-        table.cell(atrTable, 0, 4, hrLabel, bgcolor=hrColor, text_color=color.black)
-        // Row 5: PDH/PDL status
+        table.cell(atrTable, 1, 1, hrLabel, bgcolor=hrColor, text_color=color.black)
         pdhPdlLabel = close > priorDayHigh ? "Above PDH" : close < priorDayLow ? "Below PDL" : "In Prior Day Range"
         pdhPdlColor = close > priorDayHigh ? color.new(color.green, 15) : close < priorDayLow ? color.new(color.red, 15) : color.new(#B8860B, 15)
-        table.cell(atrTable, 0, 5, pdhPdlLabel, bgcolor=pdhPdlColor, text_color=color.black)
+        table.cell(atrTable, 2, 1, pdhPdlLabel, bgcolor=pdhPdlColor, text_color=color.black)
     else
-        for i = 0 to 5
-            table.cell(atrTable, 0, i, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
+        for r = 0 to 1
+            for c = 0 to 2
+                table.cell(atrTable, c, r, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
 
-    // VWAP rows
-    if i_showMaTable and not na(vwap) and not na(vwap_2day) and not na(vwap_wtd) and not na(vwap_mtd)
-        table.cell(atrTable, 0, 6,  "── VWAPs ──", bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
-        table.cell(atrTable, 0, 7,  "1D    " + str.tostring(vwap,     format.mintick), bgcolor=color.new(close > vwap     ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 8,  "2D    " + str.tostring(vwap_2day,format.mintick), bgcolor=color.new(close > vwap_2day ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 9,  "WTD   " + str.tostring(vwap_wtd, format.mintick), bgcolor=color.new(close > vwap_wtd  ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 10, "MTD   " + str.tostring(vwap_mtd, format.mintick), bgcolor=color.new(close > vwap_mtd  ? color.green : color.red, 25), text_color=color.black)
+    // Bottom-right table: 2 cols x 4 rows (col 0 = VWAPs, col 1 = SMAs)
+    if i_showMaTable and not na(vwap) and not na(vwap_2day) and not na(vwap_wtd) and not na(vwap_mtd) and not na(daily5) and not na(daily20) and not na(daily50) and not na(daily200)
+        table.cell(maTable, 0, 0, "VWAP", bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
+        table.cell(maTable, 1, 0, "SMA",  bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
+        table.cell(maTable, 0, 1, "1D  " + str.tostring(vwap,      format.mintick), bgcolor=color.new(close > vwap      ? color.green : color.red, 25), text_color=color.black)
+        table.cell(maTable, 0, 2, "2D  " + str.tostring(vwap_2day, format.mintick), bgcolor=color.new(close > vwap_2day  ? color.green : color.red, 25), text_color=color.black)
+        table.cell(maTable, 0, 3, "WTD " + str.tostring(vwap_wtd,  format.mintick), bgcolor=color.new(close > vwap_wtd   ? color.green : color.red, 25), text_color=color.black)
+        table.cell(maTable, 0, 4, "MTD " + str.tostring(vwap_mtd,  format.mintick), bgcolor=color.new(close > vwap_mtd   ? color.green : color.red, 25), text_color=color.black)
+        table.cell(maTable, 1, 1, "5D  " + str.tostring(daily5,   format.mintick), bgcolor=color.new(close > daily5   ? color.green : color.red, 25), text_color=color.black)
+        table.cell(maTable, 1, 2, "20D " + str.tostring(daily20,  format.mintick), bgcolor=color.new(close > daily20  ? color.green : color.red, 25), text_color=color.black)
+        table.cell(maTable, 1, 3, "50D " + str.tostring(daily50,  format.mintick), bgcolor=color.new(close > daily50  ? color.green : color.red, 25), text_color=color.black)
+        table.cell(maTable, 1, 4, "200D" + str.tostring(daily200, format.mintick), bgcolor=color.new(close > daily200 ? color.green : color.red, 25), text_color=color.black)
     else
-        for i = 6 to 10
-            table.cell(atrTable, 0, i, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
-
-    // MA rows
-    if i_showMaTable and not na(daily5) and not na(daily20) and not na(daily50) and not na(daily200)
-        table.cell(atrTable, 0, 11, "── MAs ──", bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
-        table.cell(atrTable, 0, 12, "5D    " + str.tostring(daily5,   format.mintick), bgcolor=color.new(close > daily5   ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 13, "20D   " + str.tostring(daily20,  format.mintick), bgcolor=color.new(close > daily20  ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 14, "50D   " + str.tostring(daily50,  format.mintick), bgcolor=color.new(close > daily50  ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 15, "200D  " + str.tostring(daily200, format.mintick), bgcolor=color.new(close > daily200 ? color.green : color.red, 25), text_color=color.black)
-    else
-        for i = 11 to 15
-            table.cell(atrTable, 0, i, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
+        for r = 0 to 4
+            for c = 0 to 1
+                table.cell(maTable, c, r, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
 
 //#endregion
