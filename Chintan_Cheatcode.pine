@@ -24,6 +24,18 @@ tt_timeframe = "Higher-timeframe lines are automatically hidden when the chart t
 i_showVwap        = input.bool(true, "Show", group=g_vwap, display=display.none)
 i_colorVwap       = input.color(color.new(#FF69B4, 0), "Color", group=g_vwap, display=display.none)
 
+g_vwap2d          = "2-Day VWAP"
+i_showVwap2d      = input.bool(false, "Show Line", group=g_vwap2d, display=display.none)
+i_colorVwap2d     = input.color(color.new(#FF9800, 0), "Color", group=g_vwap2d, display=display.none)
+
+g_vwapWtd         = "WTD VWAP"
+i_showVwapWtd     = input.bool(false, "Show Line", group=g_vwapWtd, display=display.none)
+i_colorVwapWtd    = input.color(color.new(#66BB6A, 0), "Color", group=g_vwapWtd, display=display.none)
+
+g_vwapMtd         = "MTD VWAP"
+i_showVwapMtd     = input.bool(false, "Show Line", group=g_vwapMtd, display=display.none)
+i_colorVwapMtd    = input.color(color.new(#CE93D8, 0), "Color", group=g_vwapMtd, display=display.none)
+
 i_showHourly20    = input.bool(true, "Show", group=g_hourly, tooltip=tt_timeframe, display=display.none)
 i_colorHourly20   = input.color(color.new(#FFFF00, 0), "Color", group=g_hourly, display=display.none)
 
@@ -50,10 +62,11 @@ i_showPriorDay    = input.bool(true, "Show", group=g_prior_day, tooltip=tt_timef
 i_colorPriorHigh  = input.color(color.new(#66BB6A, 0), "Prior Day High Color", group=g_prior_day, display=display.none)
 i_colorPriorLow   = input.color(color.new(#EF5350, 0), "Prior Day Low Color", group=g_prior_day, display=display.none)
 
-g_fhr             = "First Hour Box"
-i_showFhr         = input.bool(true, "Show", group=g_fhr, display=display.none)
-i_colorFhr        = input.color(color.new(#26a69a, 80), "Box Color", group=g_fhr, display=display.none)
-i_borderFhr       = input.color(color.new(#26a69a, 40), "Border Color", group=g_fhr, display=display.none)
+g_first_hour        = "First Hour Range"
+tt_firstHour        = "First-hour range is shown on intraday charts up to 60 minutes."
+i_showFirstHourBox  = input.bool(true, "Show Box", group=g_first_hour, tooltip=tt_firstHour, display=display.none)
+i_colorFirstHourBox = input.color(color.new(#90A4AE, 0), "Box Color", group=g_first_hour, display=display.none)
+i_showFirstHourText = input.bool(true, "Show 1HR Range Text", group=g_first_hour, tooltip=tt_firstHour, display=display.none)
 
 i_waitForCloses   = input.bool(true, "Wait for timeframe closes", group=g_preferences, display=display.none)
 
@@ -81,6 +94,40 @@ f_getHtfSma(string _tf, int _length) =>
 
 vwap = ta.vwap(close)
 
+typicalPrice = hlc3
+
+var float sumPV_2day = 0.0
+var float sumV_2day  = 0.0
+var float sumPV_wtd  = 0.0
+var float sumV_wtd   = 0.0
+var float sumPV_mtd  = 0.0
+var float sumV_mtd   = 0.0
+
+new2Day  = ta.change(time("2D")) != 0
+newWeek  = ta.change(time("W"))  != 0
+newMonth = ta.change(time("M"))  != 0
+
+if new2Day
+    sumPV_2day := 0.0
+    sumV_2day  := 0.0
+if newWeek
+    sumPV_wtd := 0.0
+    sumV_wtd  := 0.0
+if newMonth
+    sumPV_mtd := 0.0
+    sumV_mtd  := 0.0
+
+sumPV_2day += typicalPrice * volume
+sumV_2day  += volume
+sumPV_wtd  += typicalPrice * volume
+sumV_wtd   += volume
+sumPV_mtd  += typicalPrice * volume
+sumV_mtd   += volume
+
+vwap_2day = sumV_2day != 0 ? sumPV_2day / sumV_2day : na
+vwap_wtd  = sumV_wtd  != 0 ? sumPV_wtd  / sumV_wtd  : na
+vwap_mtd  = sumV_mtd  != 0 ? sumPV_mtd  / sumV_mtd  : na
+
 hourly20 = f_getHtfSma("60", 20)
 
 daily5 = f_getHtfSma("D", 5)
@@ -106,19 +153,16 @@ hrHigh = request.security(syminfo.tickerid, "60", high, gaps=barmerge.gaps_off, 
 hrLow  = request.security(syminfo.tickerid, "60", low,  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 hrRange = hrHigh - hrLow
 
-fhrInSession = timeframe.isintraday and not na(time(timeframe.period, "0930-1030:23456", "America/New_York"))
-fhrIsFirst   = fhrInSession and not fhrInSession[1]
+firstHourSession       = "0930-1030:23456"
+firstHourTimeZone      = "America/New_York"
+canTrackFirstHour      = timeframe.isintraday and timeframe.in_seconds() <= timeframe.in_seconds("60")
+firstHourFeatureEnabled = canTrackFirstHour and (i_showFirstHourBox or i_showFirstHourText)
+inFirstHour            = firstHourFeatureEnabled and not na(time(timeframe.period, firstHourSession, firstHourTimeZone))
+firstHourStart         = inFirstHour and not inFirstHour[1]
+newUsDay               = canTrackFirstHour and nz(ta.change(time("D", "0000-2359:23456", firstHourTimeZone)), 0) != 0
 
-var float fhrHigh = na
-var float fhrLow  = na
-var box   fhrBox  = na
-
-if fhrIsFirst
-    fhrHigh := high
-    fhrLow  := low
-else if fhrInSession and not na(fhrHigh)
-    fhrHigh := math.max(high, fhrHigh)
-    fhrLow  := math.min(low,  fhrLow)
+var float firstHourHigh = na
+var float firstHourLow  = na
 
 showDailyLevels = f_canDisplay("D")
 newDay = ta.change(time("D")) != 0
@@ -129,7 +173,8 @@ var line atrPlus1Line = na
 var line atrMinus1Line = na
 var line priorDayHighLine = na
 var line priorDayLowLine = na
-var table atrTable = table.new(position.top_right, 1, 11)
+var box  firstHourBox = na
+var table atrTable = table.new(position.top_right, 1, 16)
 
 //#endregion
 
@@ -138,22 +183,46 @@ var table atrTable = table.new(position.top_right, 1, 11)
 //#region                   Plotting & styling
 //--------------------------------------------------------------------
 
-plot(i_showVwap ? vwap : na, "VWAP", i_colorVwap, 1, style=plot.style_circles, display=display.all - display.status_line)
+plot(i_showVwap    ? vwap      : na, "VWAP",        i_colorVwap,   1, style=plot.style_circles, display=display.all - display.status_line)
+plot(i_showVwap2d  ? vwap_2day : na, "2-Day VWAP",  i_colorVwap2d, 1, display=display.all - display.status_line)
+plot(i_showVwapWtd ? vwap_wtd  : na, "WTD VWAP",    i_colorVwapWtd, 1, display=display.all - display.status_line)
+plot(i_showVwapMtd ? vwap_mtd  : na, "MTD VWAP",    i_colorVwapMtd, 1, display=display.all - display.status_line)
 
 plot(i_showHourly20 and f_canDisplay("60") ? hourly20 : na, "Hourly 20 SMA", i_colorHourly20, 1, display=display.all - display.status_line)
 
-fhrIsToday = year(time) == year(timenow) and month(time) == month(timenow) and dayofmonth(time) == dayofmonth(timenow)
+if newUsDay or not firstHourFeatureEnabled
+    firstHourHigh := na
+    firstHourLow  := na
 
-if i_showFhr and timeframe.isintraday
-    if fhrIsFirst
-        if not na(fhrBox)
-            box.delete(fhrBox)
-            fhrBox := na
-        if fhrIsToday
-            fhrBox := box.new(bar_index, fhrHigh, bar_index + 1, fhrLow, bgcolor=i_colorFhr, border_color=i_borderFhr, border_width=1, extend=extend.right)
-    else if fhrInSession and not na(fhrBox)
-        box.set_top(fhrBox, fhrHigh)
-        box.set_bottom(fhrBox, fhrLow)
+if (newUsDay or not canTrackFirstHour or not i_showFirstHourBox) and not na(firstHourBox)
+    box.delete(firstHourBox)
+    firstHourBox := na
+
+if firstHourFeatureEnabled
+    if firstHourStart
+        firstHourHigh := high
+        firstHourLow  := low
+        if i_showFirstHourBox
+            if not na(firstHourBox)
+                box.delete(firstHourBox)
+            firstHourBox := box.new(left=bar_index, top=firstHourHigh, right=bar_index + 1, bottom=firstHourLow, xloc=xloc.bar_index, border_width=1, border_color=color.new(i_colorFirstHourBox, 35), bgcolor=color.new(i_colorFirstHourBox, 85))
+    else if inFirstHour and not na(firstHourHigh)
+        firstHourHigh := math.max(firstHourHigh, high)
+        firstHourLow  := math.min(firstHourLow, low)
+        if i_showFirstHourBox
+            if na(firstHourBox)
+                firstHourBox := box.new(left=bar_index, top=firstHourHigh, right=bar_index + 1, bottom=firstHourLow, xloc=xloc.bar_index, border_width=1, border_color=color.new(i_colorFirstHourBox, 35), bgcolor=color.new(i_colorFirstHourBox, 85))
+            else
+                box.set_top(firstHourBox, firstHourHigh)
+                box.set_rightbottom(firstHourBox, right=bar_index + 1, bottom=firstHourLow)
+                box.set_bgcolor(firstHourBox, color.new(i_colorFirstHourBox, 85))
+                box.set_border_color(firstHourBox, color.new(i_colorFirstHourBox, 35))
+
+if i_showFirstHourBox and canTrackFirstHour and not inFirstHour and not na(firstHourBox) and not na(firstHourHigh) and not na(firstHourLow)
+    box.set_top(firstHourBox, firstHourHigh)
+    box.set_rightbottom(firstHourBox, right=bar_index + 1, bottom=firstHourLow)
+    box.set_bgcolor(firstHourBox, color.new(i_colorFirstHourBox, 85))
+    box.set_border_color(firstHourBox, color.new(i_colorFirstHourBox, 35))
 
 plot(i_showDaily5 and f_canDisplay("D") ? daily5 : na, "Daily 5 SMA", i_colorDaily5, 1, display=display.all - display.status_line)
 plot(i_showDaily20 and f_canDisplay("D") ? daily20 : na, "Daily 20 SMA", i_colorDaily20, 1, display=display.all - display.status_line)
@@ -226,11 +295,12 @@ if barstate.islast
         // Row 2: -1 ATR level
         table.cell(atrTable, 0, 2, "-1 ATR  " + str.tostring(atrMinus1, format.mintick), bgcolor=color.new(i_colorAtrDown, 15), text_color=color.black)
         // Row 3: 1HR Range value
-        hrRangeStr = not na(hrRange) ? "1HR Range = " + str.tostring(hrRange, "#.##") : "1HR Range = N/A"
+        firstHourRange = not na(firstHourHigh) and not na(firstHourLow) ? firstHourHigh - firstHourLow : na
+        hrRangeStr = not na(firstHourRange) ? "1HR Range = " + str.tostring(firstHourRange, format.mintick) : "1HR Range = N/A"
         table.cell(atrTable, 0, 3, hrRangeStr, bgcolor=color.new(color.gray, 60), text_color=color.white)
         // Row 4: 1HR Range inference
-        hrLabel = not na(hrHigh) ? (close > hrHigh ? "Above 1HR Range" : close < hrLow ? "Below 1HR Range" : "Inside 1HR Range = Chop") : "1HR Range = N/A"
-        hrColor = not na(hrHigh) ? (close > hrHigh ? color.new(color.green, 15) : close < hrLow ? color.new(color.red, 15) : color.new(#B8860B, 15)) : color.new(color.gray, 50)
+        hrLabel = not na(firstHourHigh) ? (close > firstHourHigh ? "Above 1HR High = Bullish" : close < firstHourLow ? "Below 1HR Low = Bearish" : "Inside 1HR Range = Chop") : "1HR Range = N/A"
+        hrColor = not na(firstHourHigh) ? (close > firstHourHigh ? color.new(#66BB6A, 15) : close < firstHourLow ? color.new(#EF5350, 15) : color.new(#FFB74D, 15)) : color.new(color.gray, 50)
         table.cell(atrTable, 0, 4, hrLabel, bgcolor=hrColor, text_color=color.black)
         // Row 5: PDH/PDL status
         pdhPdlLabel = close > priorDayHigh ? "Above PDH" : close < priorDayLow ? "Below PDL" : "In Prior Day Range"
@@ -240,15 +310,26 @@ if barstate.islast
         for i = 0 to 5
             table.cell(atrTable, 0, i, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
 
-    // MA rows
-    if i_showMaTable and not na(daily5) and not na(daily20) and not na(daily50) and not na(daily200)
-        table.cell(atrTable, 0, 6, "── MAs ──", bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
-        table.cell(atrTable, 0, 7,  "5D    " + str.tostring(daily5,   format.mintick), bgcolor=color.new(close > daily5   ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 8,  "20D   " + str.tostring(daily20,  format.mintick), bgcolor=color.new(close > daily20  ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 9,  "50D   " + str.tostring(daily50,  format.mintick), bgcolor=color.new(close > daily50  ? color.green : color.red, 25), text_color=color.black)
-        table.cell(atrTable, 0, 10, "200D  " + str.tostring(daily200, format.mintick), bgcolor=color.new(close > daily200 ? color.green : color.red, 25), text_color=color.black)
+    // VWAP rows
+    if i_showMaTable and not na(vwap) and not na(vwap_2day) and not na(vwap_wtd) and not na(vwap_mtd)
+        table.cell(atrTable, 0, 6,  "── VWAPs ──", bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
+        table.cell(atrTable, 0, 7,  "1D    " + str.tostring(vwap,     format.mintick), bgcolor=color.new(close > vwap     ? color.green : color.red, 25), text_color=color.black)
+        table.cell(atrTable, 0, 8,  "2D    " + str.tostring(vwap_2day,format.mintick), bgcolor=color.new(close > vwap_2day ? color.green : color.red, 25), text_color=color.black)
+        table.cell(atrTable, 0, 9,  "WTD   " + str.tostring(vwap_wtd, format.mintick), bgcolor=color.new(close > vwap_wtd  ? color.green : color.red, 25), text_color=color.black)
+        table.cell(atrTable, 0, 10, "MTD   " + str.tostring(vwap_mtd, format.mintick), bgcolor=color.new(close > vwap_mtd  ? color.green : color.red, 25), text_color=color.black)
     else
         for i = 6 to 10
+            table.cell(atrTable, 0, i, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
+
+    // MA rows
+    if i_showMaTable and not na(daily5) and not na(daily20) and not na(daily50) and not na(daily200)
+        table.cell(atrTable, 0, 11, "── MAs ──", bgcolor=color.new(#222222, 15), text_color=color.new(#888888, 0))
+        table.cell(atrTable, 0, 12, "5D    " + str.tostring(daily5,   format.mintick), bgcolor=color.new(close > daily5   ? color.green : color.red, 25), text_color=color.black)
+        table.cell(atrTable, 0, 13, "20D   " + str.tostring(daily20,  format.mintick), bgcolor=color.new(close > daily20  ? color.green : color.red, 25), text_color=color.black)
+        table.cell(atrTable, 0, 14, "50D   " + str.tostring(daily50,  format.mintick), bgcolor=color.new(close > daily50  ? color.green : color.red, 25), text_color=color.black)
+        table.cell(atrTable, 0, 15, "200D  " + str.tostring(daily200, format.mintick), bgcolor=color.new(close > daily200 ? color.green : color.red, 25), text_color=color.black)
+    else
+        for i = 11 to 15
             table.cell(atrTable, 0, i, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
 
 //#endregion
