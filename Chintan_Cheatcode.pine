@@ -68,10 +68,16 @@ i_showPriorWeek   = input.bool(true, "Show", group=g_prior_week, display=display
 i_colorPriorWeekH = input.color(color.new(#66BB6A, 0), "Prior Week High Color", group=g_prior_week, display=display.none)
 i_colorPriorWeekL = input.color(color.new(#EF5350, 0), "Prior Week Low Color",  group=g_prior_week, display=display.none)
 
+g_orb               = "30-Min ORB"
+tt_orb              = "30-min opening range shown on intraday charts up to 60 minutes."
+i_showOrbBox        = input.bool(true, "Show Box", group=g_orb, tooltip=tt_orb, display=display.none)
+i_colorOrbBox       = input.color(color.new(#FF8F00, 0), "Box Color", group=g_orb, display=display.none)
+i_showOrbText       = input.bool(true, "Show ORB Range Text", group=g_orb, tooltip=tt_orb, display=display.none)
+
 g_first_hour        = "First Hour Range"
 tt_firstHour        = "First-hour range is shown on intraday charts up to 60 minutes."
 i_showFirstHourBox  = input.bool(true, "Show Box", group=g_first_hour, tooltip=tt_firstHour, display=display.none)
-i_colorFirstHourBox = input.color(color.new(#90A4AE, 0), "Box Color", group=g_first_hour, display=display.none)
+i_colorFirstHourBox = input.color(color.new(#546E7A, 0), "Box Color", group=g_first_hour, display=display.none)
 i_showFirstHourText = input.bool(true, "Show 1HR Range Text", group=g_first_hour, tooltip=tt_firstHour, display=display.none)
 
 i_waitForCloses   = input.bool(true, "Wait for timeframe closes", group=g_preferences, display=display.none)
@@ -164,6 +170,16 @@ hrHigh = request.security(syminfo.tickerid, "60", high, gaps=barmerge.gaps_off, 
 hrLow  = request.security(syminfo.tickerid, "60", low,  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 hrRange = hrHigh - hrLow
 
+orbSession             = "0930-1000:23456"
+orbTimeZone            = "America/New_York"
+canTrackOrb            = timeframe.isintraday and timeframe.in_seconds() <= timeframe.in_seconds("60")
+orbFeatureEnabled      = canTrackOrb and (i_showOrbBox or i_showOrbText)
+inOrb                  = orbFeatureEnabled and not na(time(timeframe.period, orbSession, orbTimeZone))
+orbStart               = inOrb and not inOrb[1]
+
+var float orbHigh = na
+var float orbLow  = na
+
 firstHourSession       = "0930-1030:23456"
 firstHourTimeZone      = "America/New_York"
 canTrackFirstHour      = timeframe.isintraday and timeframe.in_seconds() <= timeframe.in_seconds("60")
@@ -226,6 +242,7 @@ var line priorDayHighLine  = na
 var line priorDayLowLine   = na
 var line priorWeekHighLine = na
 var line priorWeekLowLine  = na
+var box  orbBox       = na
 var box  firstHourBox = na
 var table atrTable = table.new(position.top_right,    3, 3)
 var table maTable  = table.new(position.bottom_right, 2, 5)
@@ -243,6 +260,40 @@ plot(i_showVwapWtd ? vwap_wtd  : na, "WTD VWAP",    i_colorVwapWtd, 1, display=d
 plot(i_showVwapMtd ? vwap_mtd  : na, "MTD VWAP",    i_colorVwapMtd, 1, display=display.all - display.status_line)
 
 plot(i_showHourly20 and f_canDisplay("60") ? hourly20 : na, "Hourly 20 SMA", i_colorHourly20, 1, display=display.all - display.status_line)
+
+if newUsDay or not orbFeatureEnabled
+    orbHigh := na
+    orbLow  := na
+
+if (newUsDay or not canTrackOrb or not i_showOrbBox) and not na(orbBox)
+    box.delete(orbBox)
+    orbBox := na
+
+if orbFeatureEnabled
+    if orbStart
+        orbHigh := high
+        orbLow  := low
+        if i_showOrbBox
+            if not na(orbBox)
+                box.delete(orbBox)
+            orbBox := box.new(left=bar_index, top=orbHigh, right=bar_index + 1, bottom=orbLow, xloc=xloc.bar_index, border_width=2, border_color=color.new(i_colorOrbBox, 20), bgcolor=color.new(i_colorOrbBox, 80))
+    else if inOrb and not na(orbHigh)
+        orbHigh := math.max(orbHigh, high)
+        orbLow  := math.min(orbLow, low)
+        if i_showOrbBox
+            if na(orbBox)
+                orbBox := box.new(left=bar_index, top=orbHigh, right=bar_index + 1, bottom=orbLow, xloc=xloc.bar_index, border_width=2, border_color=color.new(i_colorOrbBox, 20), bgcolor=color.new(i_colorOrbBox, 80))
+            else
+                box.set_top(orbBox, orbHigh)
+                box.set_rightbottom(orbBox, right=bar_index + 1, bottom=orbLow)
+                box.set_bgcolor(orbBox, color.new(i_colorOrbBox, 80))
+                box.set_border_color(orbBox, color.new(i_colorOrbBox, 20))
+
+if i_showOrbBox and canTrackOrb and not inOrb and not na(orbBox) and not na(orbHigh) and not na(orbLow)
+    box.set_top(orbBox, orbHigh)
+    box.set_rightbottom(orbBox, right=bar_index + 1, bottom=orbLow)
+    box.set_bgcolor(orbBox, color.new(i_colorOrbBox, 80))
+    box.set_border_color(orbBox, color.new(i_colorOrbBox, 20))
 
 if newUsDay or not firstHourFeatureEnabled
     firstHourHigh := na
