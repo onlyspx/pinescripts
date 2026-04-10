@@ -2,7 +2,7 @@
 // © Chintan
 
 // @version=6
-indicator("Chintan Cheatcode", shorttitle="Chintan Cheatcode", overlay=true)
+indicator("Chintan Cheatcode", shorttitle="Chintan Cheatcode", overlay=true, max_boxes_count=500)
 
 
 //--------------------------------------------------------------------
@@ -80,8 +80,21 @@ i_showFirstHourBox  = input.bool(true, "Show Box", group=g_first_hour, tooltip=t
 i_colorFirstHourBox = input.color(color.new(#546E7A, 0), "Box Color", group=g_first_hour, display=display.none)
 i_showFirstHourText = input.bool(true, "Show 1HR Range Text", group=g_first_hour, tooltip=tt_firstHour, display=display.none)
 
+
 i_waitForCloses   = input.bool(true, "Wait for timeframe closes", group=g_preferences, display=display.none)
 i_showKeyTimes    = input.bool(true, "Show Key Time Markers", group=g_preferences, display=display.none)
+
+g_gaps               = "Gaps"
+i_showGaps           = input.bool(true, "Show", group=g_gaps, display=display.none)
+i_closeGapsPartially = input.bool(false, "Close Gaps Partially", group=g_gaps, display=display.none)
+i_gapBoxLimit        = input.int(15, "Max Number of Gaps", minval=1, maxval=500, group=g_gaps, display=display.none)
+i_gapMinDevPct       = input.float(30.0, "Minimal Deviation (%)", minval=1, maxval=100, group=g_gaps, tooltip="Specifies the minimal size of detected gaps, as a percentage of the average high-low range for the last 14 bars.", display=display.none)
+i_limitGapLength     = input.bool(false, "Limit Max Gap Trail Length (bars)", inline="GapLen", group=g_gaps, display=display.none)
+i_gapMaxBars         = input.int(300, "", inline="GapLen", minval=1, group=g_gaps, display=display.none, active=i_limitGapLength)
+i_colorGapUpBorder   = input.color(color.green, "Up Gaps", inline="GapUp", group=g_gaps, display=display.none)
+i_colorGapUpBg       = input.color(color.new(color.green, 85), "", inline="GapUp", group=g_gaps, display=display.none)
+i_colorGapDownBorder = input.color(color.red, "Down Gaps", inline="GapDn", group=g_gaps, display=display.none)
+i_colorGapDownBg     = input.color(color.new(color.red, 85), "", inline="GapDn", group=g_gaps, display=display.none)
 
 //#endregion
 
@@ -97,6 +110,48 @@ f_getHtfSma(string _tf, int _length) =>
     i_waitForCloses ?
          request.security(syminfo.tickerid, _tf, ta.sma(close, _length)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on) :
          request.security(syminfo.tickerid, _tf, ta.sma(close, _length), gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+
+type Gap
+    bool isActive
+    bool isBull
+    array<box> boxes
+
+method delete(Gap this) =>
+    for _box in this.boxes
+        _box.delete()
+
+method partialClose(Gap this) =>
+    activeBox = this.boxes.last()
+    activeBox.set_extend(extend.none)
+    top    = this.isBull ? activeBox.get_top() : low
+    bottom = this.isBull ? high : activeBox.get_bottom()
+    this.boxes.push(box.new(bar_index, top, bar_index, bottom,
+      this.isBull ? i_colorGapDownBorder : i_colorGapUpBorder,
+      bgcolor = this.isBull ? i_colorGapDownBg : i_colorGapUpBg))
+
+method fullClose(Gap this) =>
+    activeBox = this.boxes.last()
+    activeBox.set_extend(extend.none)
+    this.isActive := false
+    if i_closeGapsPartially
+        activeBox.delete()
+
+method checkForClose(Gap this) =>
+    if this.isActive
+        activeBox = this.boxes.last()
+        top    = activeBox.get_top()
+        bot    = activeBox.get_bottom()
+        isBull = this.isBull
+        activeBox.set_right(bar_index)
+        if (high > bot and isBull) or (low < top and not isBull)
+            if i_closeGapsPartially
+                this.partialClose()
+            else
+                this.fullClose()
+        bool forceClose = i_limitGapLength and bar_index - activeBox.get_left() >= i_gapMaxBars
+        if ((high > top and isBull) or (low < bot and not isBull)) or forceClose
+            this.fullClose()
 
 //#endregion
 
@@ -161,8 +216,6 @@ atrMinus1 = atrBase - atrValue
 
 priorDayHigh  = request.security(syminfo.tickerid, "D", high[1],  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 priorDayLow   = request.security(syminfo.tickerid, "D", low[1],   gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-priorDayClose = request.security(syminfo.tickerid, "D", close[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
-todayOpen     = request.security(syminfo.tickerid, "D", open,     gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 priorWeekHigh = request.security(syminfo.tickerid, "W", high[1],  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 priorWeekLow  = request.security(syminfo.tickerid, "W", low[1],   gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
@@ -199,14 +252,6 @@ dayStartIndex = bar_index - barsSinceDayStart
 rvolSessLen  = 390  // 9:30–4:00 ET = 390 min, no midnight crossing for SPX
 var float[] rvolVols = array.new_float(rvolSessLen * 11, 0.0)  // max 10 days + current = 4,290 elements
 
-// Opening gap + fill
-gapSize    = not na(todayOpen) and not na(priorDayClose) ? todayOpen - priorDayClose : na
-gapFillPct = 0.0
-if not na(gapSize) and gapSize > 0
-    gapFillPct := math.min(100, (todayOpen - close) / gapSize * 100)
-else if not na(gapSize) and gapSize < 0
-    gapFillPct := math.min(100, (close - todayOpen) / math.abs(gapSize) * 100)
-
 // Relative volume — session-relative slots (fast: 390 slots/day vs 2880, 4290 elements vs 60480)
 // Uses ET hour/minute to compute session-relative slot (0=9:30, 389=15:59)
 inRvolSess = not na(time(timeframe.period, "0930-1600:23456", "America/New_York"))
@@ -236,6 +281,33 @@ rvolCalc() =>
 
 rvol = timeframe.isintraday ? rvolCalc() : na
 
+// Gaps
+gapMinDev = nz(i_gapMinDevPct / 100 * ta.sma(high - low, 14))
+isGapDown = i_showGaps and high < low[1] and low[1] - high >= gapMinDev
+isGapUp   = i_showGaps and low > high[1] and low - high[1] >= gapMinDev
+isGap     = isGapDown or isGapUp
+
+var array<Gap> allGaps = array.new<Gap>()
+
+gapRegisterNew(bool _isGapDown) =>
+    newBox = box.new(
+      bar_index - 1,
+      _isGapDown ? low[1] : low,
+      bar_index,
+      _isGapDown ? high : high[1],
+      border_color = _isGapDown ? i_colorGapDownBorder : i_colorGapUpBorder,
+      bgcolor      = _isGapDown ? i_colorGapDownBg     : i_colorGapUpBg,
+      extend       = extend.right)
+    allGaps.push(Gap.new(true, _isGapDown, array.from(newBox)))
+    if allGaps.size() > i_gapBoxLimit
+        allGaps.shift().delete()
+
+if i_showGaps
+    for gap in allGaps
+        gap.checkForClose()
+    if isGap
+        gapRegisterNew(isGapDown)
+
 var line atrPlus1Line = na
 var line atrMinus1Line = na
 var line priorDayHighLine  = na
@@ -244,7 +316,7 @@ var line priorWeekHighLine = na
 var line priorWeekLowLine  = na
 var box  orbBox       = na
 var box  firstHourBox = na
-var table atrTable = table.new(position.top_right,    3, 3)
+var table atrTable = table.new(position.top_right,    3, 2)
 var table maTable  = table.new(position.bottom_right, 2, 5)
 
 //#endregion
@@ -426,27 +498,18 @@ if barstate.islast
         table.cell(atrTable, 0, 0, "ATR = " + str.tostring(atrValue, "#.##"), bgcolor=color.new(color.gray, 50), text_color=color.white)
         table.cell(atrTable, 1, 0, "+1: " + str.tostring(atrPlus1, format.mintick), bgcolor=color.new(i_colorAtrUp, 15), text_color=color.black)
         table.cell(atrTable, 2, 0, "-1: " + str.tostring(atrMinus1, format.mintick), bgcolor=color.new(i_colorAtrDown, 15), text_color=color.black)
-        // Row 1: 1HR Range | 1HR inference | PDH/PDL
+        // Row 1: 1HR Range | PDH/PDL | RVOL
         hrRangeStr = not na(firstHourRange) ? "1HR = " + str.tostring(firstHourRange, format.mintick) : "1HR = N/A"
         table.cell(atrTable, 0, 1, hrRangeStr, bgcolor=color.new(color.gray, 60), text_color=color.white)
-        hrLabel = not na(firstHourHigh) ? (close > firstHourHigh ? "Above 1HR = Bullish" : close < firstHourLow ? "Below 1HR = Bearish" : "Inside 1HR = Chop") : "1HR = N/A"
-        hrColor = not na(firstHourHigh) ? (close > firstHourHigh ? color.new(#66BB6A, 15) : close < firstHourLow ? color.new(#EF5350, 15) : color.new(#FFB74D, 15)) : color.new(color.gray, 50)
-        table.cell(atrTable, 1, 1, hrLabel, bgcolor=hrColor, text_color=color.black)
         pdhPdlLabel = close > priorDayHigh ? "Above PDH" : close < priorDayLow ? "Below PDL" : "In Prior Day Range"
         pdhPdlColor = close > priorDayHigh ? color.new(color.green, 15) : close < priorDayLow ? color.new(color.red, 15) : color.new(#B8860B, 15)
-        table.cell(atrTable, 2, 1, pdhPdlLabel, bgcolor=pdhPdlColor, text_color=color.black)
-        // Row 2: Gap | Fill | RVOL
-        gapStr   = not na(gapSize) ? "Gap: " + str.tostring(gapSize, format.mintick) : "Gap: N/A"
-        gapColor = not na(gapSize) ? (gapSize > 0 ? color.new(color.green, 15) : gapSize < 0 ? color.new(color.red, 15) : color.new(color.gray, 50)) : color.new(color.gray, 50)
-        table.cell(atrTable, 0, 2, gapStr, bgcolor=gapColor, text_color=color.black)
-        fillStr   = not na(gapFillPct) ? "Fill: " + str.tostring(gapFillPct, "#") + "%" : "Fill: N/A"
-        fillColor = not na(gapFillPct) ? (gapFillPct >= 75 ? color.new(color.green, 15) : gapFillPct >= 40 ? color.new(#FFB74D, 15) : color.new(color.red, 15)) : color.new(color.gray, 50)
-        table.cell(atrTable, 1, 2, fillStr, bgcolor=fillColor, text_color=color.black)
-        rvolStr   = not na(rvol) ? "RVOL: " + str.tostring(rvol, "#.##") + "x" : "RVOL: N/A"
-        rvolColor = not na(rvol) ? (rvol >= 1.0 ? color.new(color.green, 15) : color.new(color.gray, 50)) : color.new(color.gray, 50)
-        table.cell(atrTable, 2, 2, rvolStr, bgcolor=rvolColor, text_color=color.black)
+        table.cell(atrTable, 1, 1, pdhPdlLabel, bgcolor=pdhPdlColor, text_color=color.black)
+        rvolStr = not na(rvol) ? "RVOL: " + str.tostring(rvol, "#.##") + "x" : "RVOL: N/A"
+        rvolBg  = not na(rvol) ? (rvol >= 2.0 ? color.new(#00E5FF, 15) : rvol >= 1.2 ? color.new(#388E3C, 15) : rvol >= 0.8 ? color.new(#F9A825, 30) : color.new(color.gray, 50)) : color.new(color.gray, 60)
+        rvolTxt = not na(rvol) ? (rvol >= 2.0 ? color.black : rvol >= 1.2 ? color.white : color.black) : color.white
+        table.cell(atrTable, 2, 1, rvolStr, bgcolor=rvolBg, text_color=rvolTxt)
     else
-        for r = 0 to 2
+        for r = 0 to 1
             for c = 0 to 2
                 table.cell(atrTable, c, r, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
 
@@ -479,6 +542,7 @@ if barstate.islast
         for r = 0 to 4
             for c = 0 to 1
                 table.cell(maTable, c, r, "", bgcolor=color.new(color.black, 100), text_color=color.new(color.black, 100))
+
 
 // Key intraday time markers
 keyTZ     = "America/New_York"
