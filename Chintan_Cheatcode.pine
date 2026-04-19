@@ -15,6 +15,7 @@ g_daily_5      = "Daily 5 SMA"
 g_daily_20     = "Daily 20 SMA"
 g_daily_50     = "Daily 50 SMA"
 g_daily_200    = "Daily 200 SMA"
+g_daily_halfback = "Daily Halfback"
 g_atr          = "ATR Levels"
 g_prior_day    = "Prior Day Levels"
 g_preferences  = "Preferences"
@@ -50,6 +51,9 @@ i_colorDaily50    = input.color(color.new(#6d9eeb, 0), "Color", group=g_daily_50
 
 i_showDaily200    = input.bool(false, "Show Line", group=g_daily_200, tooltip=tt_timeframe, display=display.none)
 i_colorDaily200   = input.color(color.new(#1c4587, 0), "Color", group=g_daily_200, display=display.none)
+
+i_showDailyHalfback  = input.bool(true, "Show Line", group=g_daily_halfback, tooltip=tt_timeframe, display=display.none)
+i_colorDailyHalfback = input.color(color.new(#9E9D24, 0), "Color", group=g_daily_halfback, display=display.none)
 
 i_showAtrLevels   = input.bool(false, "Show Lines", group=g_atr, tooltip=tt_timeframe, display=display.none)
 i_atrLength       = input.int(14, "ATR Length", minval=1, group=g_atr, display=display.none)
@@ -203,6 +207,18 @@ daily20 = f_getHtfSma("D", 20)
 daily50 = f_getHtfSma("D", 50)
 daily200 = f_getHtfSma("D", 200)
 
+var float dayHigh = na
+var float dayLow  = na
+
+if ta.change(time("D")) != 0 or na(dayHigh)
+    dayHigh := high
+    dayLow  := low
+else
+    dayHigh := math.max(dayHigh, high)
+    dayLow  := math.min(dayLow, low)
+
+dailyHalfback = dayLow + (dayHigh - dayLow) / 2.0
+
 atrTicker = ticker.new(syminfo.prefix, syminfo.ticker, session=session.extended)
 atrBase = i_waitForCloses ?
      request.security(atrTicker, "D", close[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on) :
@@ -310,10 +326,12 @@ if i_showGaps
 
 var line atrPlus1Line = na
 var line atrMinus1Line = na
+var line dailyHalfbackLine = na
 var line priorDayHighLine  = na
 var line priorDayLowLine   = na
 var line priorWeekHighLine = na
 var line priorWeekLowLine  = na
+var label dailyHalfbackLabel = na
 var box  orbBox       = na
 var box  firstHourBox = na
 var table atrTable = table.new(position.top_right,    3, 2)
@@ -348,13 +366,13 @@ if orbFeatureEnabled
         if i_showOrbBox
             if not na(orbBox)
                 box.delete(orbBox)
-            orbBox := box.new(left=bar_index, top=orbHigh, right=bar_index + 1, bottom=orbLow, xloc=xloc.bar_index, border_width=2, border_color=color.new(i_colorOrbBox, 20), bgcolor=color.new(i_colorOrbBox, 80))
+            orbBox := box.new(left=bar_index, top=orbHigh, right=bar_index + 1, bottom=orbLow, xloc=xloc.bar_index, border_width=1, border_color=color.new(i_colorOrbBox, 20), bgcolor=color.new(i_colorOrbBox, 80))
     else if inOrb and not na(orbHigh)
         orbHigh := math.max(orbHigh, high)
         orbLow  := math.min(orbLow, low)
         if i_showOrbBox
             if na(orbBox)
-                orbBox := box.new(left=bar_index, top=orbHigh, right=bar_index + 1, bottom=orbLow, xloc=xloc.bar_index, border_width=2, border_color=color.new(i_colorOrbBox, 20), bgcolor=color.new(i_colorOrbBox, 80))
+                orbBox := box.new(left=bar_index, top=orbHigh, right=bar_index + 1, bottom=orbLow, xloc=xloc.bar_index, border_width=1, border_color=color.new(i_colorOrbBox, 20), bgcolor=color.new(i_colorOrbBox, 80))
             else
                 box.set_top(orbBox, orbHigh)
                 box.set_rightbottom(orbBox, right=bar_index + 1, bottom=orbLow)
@@ -405,6 +423,33 @@ plot(i_showDaily5 and f_canDisplay("D") ? daily5 : na, "Daily 5 SMA", i_colorDai
 plot(i_showDaily20 and f_canDisplay("D") ? daily20 : na, "Daily 20 SMA", i_colorDaily20, 1, display=display.all - display.status_line)
 plot(i_showDaily50 and f_canDisplay("D") ? daily50 : na, "Daily 50 SMA", i_colorDaily50, 1, display=display.all - display.status_line)
 plot(i_showDaily200 and f_canDisplay("D") ? daily200 : na, "Daily 200 SMA", i_colorDaily200, 1, display=display.all - display.status_line)
+
+if i_showDailyHalfback and timeframe.isintraday and showDailyLevels and not na(dailyHalfback)
+    if na(dailyHalfbackLine)
+        dailyHalfbackLine := line.new(dayStartIndex, dailyHalfback, bar_index + 1, dailyHalfback, xloc=xloc.bar_index, extend=extend.right, color=i_colorDailyHalfback, style=line.style_solid, width=1)
+    else
+        line.set_xy1(dailyHalfbackLine, dayStartIndex, dailyHalfback)
+        line.set_xy2(dailyHalfbackLine, bar_index + 1, dailyHalfback)
+        line.set_color(dailyHalfbackLine, i_colorDailyHalfback)
+        line.set_style(dailyHalfbackLine, line.style_solid)
+        line.set_width(dailyHalfbackLine, 1)
+        line.set_extend(dailyHalfbackLine, extend.right)
+    if na(dailyHalfbackLabel)
+        dailyHalfbackLabel := label.new(bar_index + 1, dailyHalfback, "Halfback", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, textcolor=color.white, color=i_colorDailyHalfback, size=size.tiny)
+    else
+        label.set_xy(dailyHalfbackLabel, bar_index + 1, dailyHalfback)
+        label.set_text(dailyHalfbackLabel, "Halfback")
+        label.set_textcolor(dailyHalfbackLabel, color.white)
+        label.set_color(dailyHalfbackLabel, i_colorDailyHalfback)
+        label.set_style(dailyHalfbackLabel, label.style_label_left)
+        label.set_size(dailyHalfbackLabel, size.tiny)
+else
+    if not na(dailyHalfbackLine)
+        line.delete(dailyHalfbackLine)
+        dailyHalfbackLine := na
+    if not na(dailyHalfbackLabel)
+        label.delete(dailyHalfbackLabel)
+        dailyHalfbackLabel := na
 
 if i_showAtrLevels and showDailyLevels and not na(atrPlus1)
     if na(atrPlus1Line)
