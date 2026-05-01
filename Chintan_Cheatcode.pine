@@ -2,7 +2,7 @@
 // © Chintan
 
 // @version=6
-indicator("Chintan Cheatcode", shorttitle="Chintan Cheatcode", overlay=true, max_boxes_count=500)
+indicator("Chintan Cheatcode", shorttitle="Chintan Cheatcode", overlay=true, max_boxes_count=500, max_labels_count=64)
 
 
 //--------------------------------------------------------------------
@@ -54,6 +54,8 @@ i_colorDaily200   = input.color(color.new(#1c4587, 0), "Color", group=g_daily_20
 
 i_showDailyHalfback  = input.bool(true, "Show Line", group=g_daily_halfback, tooltip=tt_timeframe, display=display.none)
 i_colorDailyHalfback = input.color(color.new(#9E9D24, 0), "Color", group=g_daily_halfback, display=display.none)
+i_halfbackPlotStyle  = input.string("Stepline", "Plot style", options=["Stepline", "Line"], group=g_daily_halfback, tooltip="Stepline: flat until session high/low changes. Line: connects per-bar midpoint.", display=display.none)
+i_showHalfbackLabel  = input.bool(true, "Label on last bar", group=g_daily_halfback, display=display.none)
 
 i_showAtrLevels   = input.bool(false, "Show Lines", group=g_atr, tooltip=tt_timeframe, display=display.none)
 i_atrLength       = input.int(14, "ATR Length", minval=1, group=g_atr, display=display.none)
@@ -63,14 +65,17 @@ i_showAtrTable    = input.bool(true, "Show ATR Table", group=g_atr, display=disp
 i_showMaTable     = input.bool(true, "Show MA Table", group=g_atr, display=display.none)
 i_rvolPeriod      = input.int(5, "RVOL Lookback Days", minval=1, maxval=10, group=g_atr, display=display.none)
 
-i_showPriorDay    = input.bool(true, "Show", group=g_prior_day, tooltip=tt_timeframe, display=display.none)
-i_colorPriorHigh  = input.color(color.new(#66BB6A, 0), "Prior Day High Color", group=g_prior_day, display=display.none)
-i_colorPriorLow   = input.color(color.new(#EF5350, 0), "Prior Day Low Color", group=g_prior_day, display=display.none)
+i_showPriorDay         = input.bool(true, "Show", group=g_prior_day, tooltip=tt_timeframe, display=display.none)
+i_colorPriorHigh       = input.color(color.new(#66BB6A, 0), "Prior Day High Color", group=g_prior_day, display=display.none)
+i_colorPriorLow        = input.color(color.new(#EF5350, 0), "Prior Day Low Color", group=g_prior_day, display=display.none)
+i_showPriorLevelLabels = input.bool(true, "Labels on last bar (PDH/PDL/PWH/PWL/PW mid)", group=g_prior_day, display=display.none)
 
 g_prior_week      = "Prior Week"
-i_showPriorWeek   = input.bool(true, "Show", group=g_prior_week, display=display.none)
-i_colorPriorWeekH = input.color(color.new(#66BB6A, 0), "Prior Week High Color", group=g_prior_week, display=display.none)
-i_colorPriorWeekL = input.color(color.new(#EF5350, 0), "Prior Week Low Color",  group=g_prior_week, display=display.none)
+i_showPriorWeek     = input.bool(true, "Show", group=g_prior_week, display=display.none)
+i_colorPriorWeekH   = input.color(color.new(#66BB6A, 0), "Prior Week High Color", group=g_prior_week, display=display.none)
+i_colorPriorWeekL   = input.color(color.new(#EF5350, 0), "Prior Week Low Color",  group=g_prior_week, display=display.none)
+i_showPriorWeekMid  = input.bool(true, "Show prior week midpoint", group=g_prior_week, display=display.none)
+i_colorPriorWeekMid = input.color(color.new(#78909C, 0), "Prior Week Mid Color", group=g_prior_week, display=display.none)
 
 g_orb               = "30-Min ORB"
 tt_orb              = "30-min opening range shown on intraday charts up to 60 minutes."
@@ -99,6 +104,9 @@ i_colorGapUpBorder   = input.color(color.green, "Up Gaps", inline="GapUp", group
 i_colorGapUpBg       = input.color(color.new(color.green, 85), "", inline="GapUp", group=g_gaps, display=display.none)
 i_colorGapDownBorder = input.color(color.red, "Down Gaps", inline="GapDn", group=g_gaps, display=display.none)
 i_colorGapDownBg     = input.color(color.new(color.red, 85), "", inline="GapDn", group=g_gaps, display=display.none)
+i_gapMinPoints       = input.float(10.0, "Min gap size (points)", minval=0, step=0.25, group=g_gaps, tooltip="Minimum absolute gap size for gap boxes and for opening-gap midpoint.", display=display.none)
+i_showOpenGapMid     = input.bool(true, "Show opening-gap midpoint", group=g_gaps, tooltip="Mid-price of the gap on the first bar of each calendar day only (not intraday gaps).", display=display.none)
+i_colorOpenGapMid    = input.color(color.new(color.gray, 55), "Opening gap mid line", group=g_gaps, display=display.none)
 
 //#endregion
 
@@ -234,6 +242,7 @@ priorDayHigh  = request.security(syminfo.tickerid, "D", high[1],  gaps=barmerge.
 priorDayLow   = request.security(syminfo.tickerid, "D", low[1],   gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 priorWeekHigh = request.security(syminfo.tickerid, "W", high[1],  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 priorWeekLow  = request.security(syminfo.tickerid, "W", low[1],   gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+priorWeekMid  = not na(priorWeekHigh) and not na(priorWeekLow) ? (priorWeekHigh + priorWeekLow) * 0.5 : na
 
 hrHigh = request.security(syminfo.tickerid, "60", high, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
 hrLow  = request.security(syminfo.tickerid, "60", low,  gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
@@ -297,11 +306,22 @@ rvolCalc() =>
 
 rvol = timeframe.isintraday ? rvolCalc() : na
 
-// Gaps
+// Gaps (min deviation % and absolute min points)
 gapMinDev = nz(i_gapMinDevPct / 100 * ta.sma(high - low, 14))
-isGapDown = i_showGaps and high < low[1] and low[1] - high >= gapMinDev
-isGapUp   = i_showGaps and low > high[1] and low - high[1] >= gapMinDev
+gapSzUp   = not na(high[1]) ? low - high[1] : na
+gapSzDn   = not na(low[1]) ? low[1] - high : na
+strucGapUp   = not na(gapSzUp) and low > high[1] and gapSzUp >= gapMinDev and gapSzUp >= i_gapMinPoints
+strucGapDown = not na(gapSzDn) and high < low[1] and gapSzDn >= gapMinDev and gapSzDn >= i_gapMinPoints
+isGapUp   = i_showGaps and strucGapUp
+isGapDown = i_showGaps and strucGapDown
 isGap     = isGapDown or isGapUp
+
+// Opening-gap midpoint: set on new calendar day only, carried through session
+var float openGapMidSession = na
+if newDay
+    openGapMidSession := i_showOpenGapMid and strucGapUp ? (high[1] + low) * 0.5 : i_showOpenGapMid and strucGapDown ? (high + low[1]) * 0.5 : na
+else
+    openGapMidSession := openGapMidSession[1]
 
 var array<Gap> allGaps = array.new<Gap>()
 
@@ -326,12 +346,12 @@ if i_showGaps
 
 var line atrPlus1Line = na
 var line atrMinus1Line = na
-var line dailyHalfbackLine = na
-var line priorDayHighLine  = na
-var line priorDayLowLine   = na
-var line priorWeekHighLine = na
-var line priorWeekLowLine  = na
-var label dailyHalfbackLabel = na
+var label halfbackLastLabel = na
+var label pdhLastLabel = na
+var label pdlLastLabel = na
+var label pwhLastLabel = na
+var label pwlLastLabel = na
+var label pwmLastLabel = na
 var box  orbBox       = na
 var box  firstHourBox = na
 var table atrTable = table.new(position.top_right,    3, 2)
@@ -424,32 +444,100 @@ plot(i_showDaily20 and f_canDisplay("D") ? daily20 : na, "Daily 20 SMA", i_color
 plot(i_showDaily50 and f_canDisplay("D") ? daily50 : na, "Daily 50 SMA", i_colorDaily50, 1, display=display.all - display.status_line)
 plot(i_showDaily200 and f_canDisplay("D") ? daily200 : na, "Daily 200 SMA", i_colorDaily200, 1, display=display.all - display.status_line)
 
-if i_showDailyHalfback and timeframe.isintraday and showDailyLevels and not na(dailyHalfback)
-    if na(dailyHalfbackLine)
-        dailyHalfbackLine := line.new(dayStartIndex, dailyHalfback, bar_index + 1, dailyHalfback, xloc=xloc.bar_index, extend=extend.right, color=i_colorDailyHalfback, style=line.style_solid, width=1)
-    else
-        line.set_xy1(dailyHalfbackLine, dayStartIndex, dailyHalfback)
-        line.set_xy2(dailyHalfbackLine, bar_index + 1, dailyHalfback)
-        line.set_color(dailyHalfbackLine, i_colorDailyHalfback)
-        line.set_style(dailyHalfbackLine, line.style_solid)
-        line.set_width(dailyHalfbackLine, 1)
-        line.set_extend(dailyHalfbackLine, extend.right)
-    if na(dailyHalfbackLabel)
-        dailyHalfbackLabel := label.new(bar_index + 1, dailyHalfback, "Halfback", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, textcolor=color.white, color=i_colorDailyHalfback, size=size.tiny)
-    else
-        label.set_xy(dailyHalfbackLabel, bar_index + 1, dailyHalfback)
-        label.set_text(dailyHalfbackLabel, "Halfback")
-        label.set_textcolor(dailyHalfbackLabel, color.white)
-        label.set_color(dailyHalfbackLabel, i_colorDailyHalfback)
-        label.set_style(dailyHalfbackLabel, label.style_label_left)
-        label.set_size(dailyHalfbackLabel, size.tiny)
+halfbackPlotStyle = i_halfbackPlotStyle == "Stepline" ? plot.style_stepline : plot.style_line
+plot(i_showDailyHalfback and timeframe.isintraday and showDailyLevels and not na(dailyHalfback) ? dailyHalfback : na, "Daily Halfback", i_colorDailyHalfback, 1, style=halfbackPlotStyle, display=display.all - display.status_line)
+plot(i_showOpenGapMid and showDailyLevels and not na(openGapMidSession) ? openGapMidSession : na, "Open gap mid", i_colorOpenGapMid, 1, style=plot.style_line, display=display.all - display.status_line)
+plot(i_showPriorDay and showDailyLevels and not na(priorDayHigh) ? priorDayHigh : na, "Prior Day High", i_colorPriorHigh, 2, style=plot.style_line, display=display.all - display.status_line)
+plot(i_showPriorDay and showDailyLevels and not na(priorDayLow) ? priorDayLow : na, "Prior Day Low", i_colorPriorLow, 2, style=plot.style_line, display=display.all - display.status_line)
+plot(i_showPriorWeek and showDailyLevels and not na(priorWeekHigh) ? priorWeekHigh : na, "Prior Week High", i_colorPriorWeekH, 2, style=plot.style_line, display=display.all - display.status_line)
+plot(i_showPriorWeek and showDailyLevels and not na(priorWeekLow) ? priorWeekLow : na, "Prior Week Low", i_colorPriorWeekL, 2, style=plot.style_line, display=display.all - display.status_line)
+plot(i_showPriorWeekMid and i_showPriorWeek and showDailyLevels and not na(priorWeekMid) ? priorWeekMid : na, "Prior Week Mid", i_colorPriorWeekMid, 2, style=plot.style_line, display=display.all - display.status_line)
+
+if i_showDailyHalfback and timeframe.isintraday and showDailyLevels and i_showHalfbackLabel and not na(dailyHalfback)
+    if barstate.islast
+        if na(halfbackLastLabel)
+            halfbackLastLabel := label.new(bar_index, dailyHalfback, "Halfback", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, textcolor=color.white, color=i_colorDailyHalfback, size=size.tiny)
+        else
+            label.set_xy(halfbackLastLabel, bar_index, dailyHalfback)
+            label.set_text(halfbackLastLabel, "Halfback")
+            label.set_textcolor(halfbackLastLabel, color.white)
+            label.set_color(halfbackLastLabel, i_colorDailyHalfback)
+            label.set_style(halfbackLastLabel, label.style_label_left)
+            label.set_size(halfbackLastLabel, size.tiny)
 else
-    if not na(dailyHalfbackLine)
-        line.delete(dailyHalfbackLine)
-        dailyHalfbackLine := na
-    if not na(dailyHalfbackLabel)
-        label.delete(dailyHalfbackLabel)
-        dailyHalfbackLabel := na
+    if not na(halfbackLastLabel)
+        label.delete(halfbackLastLabel)
+        halfbackLastLabel := na
+
+// Last-bar labels for prior day/week levels (same pattern as halfback)
+if i_showPriorLevelLabels and showDailyLevels
+    if barstate.islast
+        if i_showPriorDay and not na(priorDayHigh)
+            if na(pdhLastLabel)
+                pdhLastLabel := label.new(bar_index, priorDayHigh, "PDH", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, textcolor=color.white, color=i_colorPriorHigh, size=size.tiny)
+            else
+                label.set_xy(pdhLastLabel, bar_index, priorDayHigh)
+                label.set_text(pdhLastLabel, "PDH")
+                label.set_color(pdhLastLabel, i_colorPriorHigh)
+        else if not na(pdhLastLabel)
+            label.delete(pdhLastLabel)
+            pdhLastLabel := na
+        if i_showPriorDay and not na(priorDayLow)
+            if na(pdlLastLabel)
+                pdlLastLabel := label.new(bar_index, priorDayLow, "PDL", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, textcolor=color.white, color=i_colorPriorLow, size=size.tiny)
+            else
+                label.set_xy(pdlLastLabel, bar_index, priorDayLow)
+                label.set_text(pdlLastLabel, "PDL")
+                label.set_color(pdlLastLabel, i_colorPriorLow)
+        else if not na(pdlLastLabel)
+            label.delete(pdlLastLabel)
+            pdlLastLabel := na
+        if i_showPriorWeek and not na(priorWeekHigh)
+            if na(pwhLastLabel)
+                pwhLastLabel := label.new(bar_index, priorWeekHigh, "PWH", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, textcolor=color.white, color=i_colorPriorWeekH, size=size.tiny)
+            else
+                label.set_xy(pwhLastLabel, bar_index, priorWeekHigh)
+                label.set_text(pwhLastLabel, "PWH")
+                label.set_color(pwhLastLabel, i_colorPriorWeekH)
+        else if not na(pwhLastLabel)
+            label.delete(pwhLastLabel)
+            pwhLastLabel := na
+        if i_showPriorWeek and not na(priorWeekLow)
+            if na(pwlLastLabel)
+                pwlLastLabel := label.new(bar_index, priorWeekLow, "PWL", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, textcolor=color.white, color=i_colorPriorWeekL, size=size.tiny)
+            else
+                label.set_xy(pwlLastLabel, bar_index, priorWeekLow)
+                label.set_text(pwlLastLabel, "PWL")
+                label.set_color(pwlLastLabel, i_colorPriorWeekL)
+        else if not na(pwlLastLabel)
+            label.delete(pwlLastLabel)
+            pwlLastLabel := na
+        if i_showPriorWeekMid and i_showPriorWeek and not na(priorWeekMid)
+            if na(pwmLastLabel)
+                pwmLastLabel := label.new(bar_index, priorWeekMid, "PW Mid", xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_left, textcolor=color.white, color=i_colorPriorWeekMid, size=size.tiny)
+            else
+                label.set_xy(pwmLastLabel, bar_index, priorWeekMid)
+                label.set_text(pwmLastLabel, "PW Mid")
+                label.set_color(pwmLastLabel, i_colorPriorWeekMid)
+        else if not na(pwmLastLabel)
+            label.delete(pwmLastLabel)
+            pwmLastLabel := na
+else
+    if not na(pdhLastLabel)
+        label.delete(pdhLastLabel)
+        pdhLastLabel := na
+    if not na(pdlLastLabel)
+        label.delete(pdlLastLabel)
+        pdlLastLabel := na
+    if not na(pwhLastLabel)
+        label.delete(pwhLastLabel)
+        pwhLastLabel := na
+    if not na(pwlLastLabel)
+        label.delete(pwlLastLabel)
+        pwlLastLabel := na
+    if not na(pwmLastLabel)
+        label.delete(pwmLastLabel)
+        pwmLastLabel := na
 
 if i_showAtrLevels and showDailyLevels and not na(atrPlus1)
     if na(atrPlus1Line)
@@ -478,62 +566,6 @@ if i_showAtrLevels and showDailyLevels and not na(atrMinus1)
 else if not na(atrMinus1Line)
     line.delete(atrMinus1Line)
     atrMinus1Line := na
-
-if i_showPriorDay and showDailyLevels and not na(priorDayHigh)
-    if na(priorDayHighLine)
-        priorDayHighLine := line.new(dayStartIndex, priorDayHigh, bar_index + 1, priorDayHigh, xloc=xloc.bar_index, extend=extend.right, color=i_colorPriorHigh, style=line.style_dotted, width=2)
-    else
-        line.set_xy1(priorDayHighLine, dayStartIndex, priorDayHigh)
-        line.set_xy2(priorDayHighLine, bar_index + 1, priorDayHigh)
-        line.set_color(priorDayHighLine, i_colorPriorHigh)
-        line.set_style(priorDayHighLine, line.style_dotted)
-        line.set_width(priorDayHighLine, 2)
-        line.set_extend(priorDayHighLine, extend.right)
-else if not na(priorDayHighLine)
-    line.delete(priorDayHighLine)
-    priorDayHighLine := na
-
-if i_showPriorDay and showDailyLevels and not na(priorDayLow)
-    if na(priorDayLowLine)
-        priorDayLowLine := line.new(dayStartIndex, priorDayLow, bar_index + 1, priorDayLow, xloc=xloc.bar_index, extend=extend.right, color=i_colorPriorLow, style=line.style_dotted, width=2)
-    else
-        line.set_xy1(priorDayLowLine, dayStartIndex, priorDayLow)
-        line.set_xy2(priorDayLowLine, bar_index + 1, priorDayLow)
-        line.set_color(priorDayLowLine, i_colorPriorLow)
-        line.set_style(priorDayLowLine, line.style_dotted)
-        line.set_width(priorDayLowLine, 2)
-        line.set_extend(priorDayLowLine, extend.right)
-else if not na(priorDayLowLine)
-    line.delete(priorDayLowLine)
-    priorDayLowLine := na
-
-if i_showPriorWeek and showDailyLevels and not na(priorWeekHigh)
-    if na(priorWeekHighLine)
-        priorWeekHighLine := line.new(dayStartIndex, priorWeekHigh, bar_index + 1, priorWeekHigh, xloc=xloc.bar_index, extend=extend.right, color=i_colorPriorWeekH, style=line.style_dashed, width=1)
-    else
-        line.set_xy1(priorWeekHighLine, dayStartIndex, priorWeekHigh)
-        line.set_xy2(priorWeekHighLine, bar_index + 1, priorWeekHigh)
-        line.set_color(priorWeekHighLine, i_colorPriorWeekH)
-        line.set_style(priorWeekHighLine, line.style_dashed)
-        line.set_width(priorWeekHighLine, 1)
-        line.set_extend(priorWeekHighLine, extend.right)
-else if not na(priorWeekHighLine)
-    line.delete(priorWeekHighLine)
-    priorWeekHighLine := na
-
-if i_showPriorWeek and showDailyLevels and not na(priorWeekLow)
-    if na(priorWeekLowLine)
-        priorWeekLowLine := line.new(dayStartIndex, priorWeekLow, bar_index + 1, priorWeekLow, xloc=xloc.bar_index, extend=extend.right, color=i_colorPriorWeekL, style=line.style_dashed, width=1)
-    else
-        line.set_xy1(priorWeekLowLine, dayStartIndex, priorWeekLow)
-        line.set_xy2(priorWeekLowLine, bar_index + 1, priorWeekLow)
-        line.set_color(priorWeekLowLine, i_colorPriorWeekL)
-        line.set_style(priorWeekLowLine, line.style_dashed)
-        line.set_width(priorWeekLowLine, 1)
-        line.set_extend(priorWeekLowLine, extend.right)
-else if not na(priorWeekLowLine)
-    line.delete(priorWeekLowLine)
-    priorWeekLowLine := na
 
 if barstate.islast
     // Top-right table: 3 cols x 2 rows
