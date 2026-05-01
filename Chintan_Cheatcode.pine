@@ -104,9 +104,7 @@ i_colorGapUpBorder   = input.color(color.green, "Up Gaps", inline="GapUp", group
 i_colorGapUpBg       = input.color(color.new(color.green, 85), "", inline="GapUp", group=g_gaps, display=display.none)
 i_colorGapDownBorder = input.color(color.red, "Down Gaps", inline="GapDn", group=g_gaps, display=display.none)
 i_colorGapDownBg     = input.color(color.new(color.red, 85), "", inline="GapDn", group=g_gaps, display=display.none)
-i_gapMinPoints       = input.float(10.0, "Min gap size (points)", minval=0, step=0.25, group=g_gaps, tooltip="Minimum absolute gap size for gap boxes and for opening-gap midpoint.", display=display.none)
-i_showOpenGapMid     = input.bool(true, "Show opening-gap midpoint", group=g_gaps, tooltip="Mid-price of the gap on the first bar of each calendar day only (not intraday gaps).", display=display.none)
-i_colorOpenGapMid    = input.color(color.new(color.gray, 70), "Opening gap mid line", group=g_gaps, display=display.none)
+i_gapMinPoints       = input.float(10.0, "Min gap size (points)", minval=0, step=0.25, group=g_gaps, tooltip="Minimum absolute gap size for gap boxes.", display=display.none)
 
 //#endregion
 
@@ -316,20 +314,6 @@ isGapUp   = i_showGaps and strucGapUp
 isGapDown = i_showGaps and strucGapDown
 isGap     = isGapDown or isGapUp
 
-// Opening-gap midpoint: first bar of calendar day; use open vs prior bar (first 5m bar can wick so low>high[1] often fails)
-// Opening gap: points-only threshold (gapMinDev can block real opens on bar 1); boxes still use strucGap* with %
-openGapSzUp = not na(high[1]) ? open - high[1] : na
-openGapSzDn = not na(low[1]) ? low[1] - open : na
-openGapUpOk = not na(openGapSzUp) and open > high[1] and openGapSzUp >= i_gapMinPoints
-openGapDnOk = not na(openGapSzDn) and open < low[1] and openGapSzDn >= i_gapMinPoints
-
-var float openGapMidSession = na
-if newDay
-    // Prefer open/edge mid; fall back to full empty-zone mid if that bar still clears the bar-to-bar gap test
-    openGapMidSession := not i_showOpenGapMid ? na : openGapUpOk ? (high[1] + open) * 0.5 : openGapDnOk ? (open + low[1]) * 0.5 : strucGapUp ? (high[1] + low) * 0.5 : strucGapDown ? (high + low[1]) * 0.5 : na
-else
-    openGapMidSession := openGapMidSession[1]
-
 var array<Gap> allGaps = array.new<Gap>()
 
 gapRegisterNew(bool _isGapDown) =>
@@ -453,7 +437,6 @@ plot(i_showDaily200 and f_canDisplay("D") ? daily200 : na, "Daily 200 SMA", i_co
 
 halfbackPlotStyle = i_halfbackPlotStyle == "Stepline" ? plot.style_stepline : plot.style_line
 plot(i_showDailyHalfback and timeframe.isintraday and showDailyLevels and not na(dailyHalfback) ? dailyHalfback : na, "Daily Halfback", i_colorDailyHalfback, 1, style=halfbackPlotStyle, display=display.all - display.status_line)
-plot(i_showOpenGapMid and showDailyLevels and not na(openGapMidSession) ? openGapMidSession : na, "Open gap mid", i_colorOpenGapMid, 1, style=plot.style_stepline, display=display.all - display.status_line)
 plot(i_showPriorDay and showDailyLevels and not na(priorDayHigh) ? priorDayHigh : na, "Prior Day High", i_colorPriorHigh, 1, style=plot.style_stepline, display=display.all - display.status_line)
 plot(i_showPriorDay and showDailyLevels and not na(priorDayLow) ? priorDayLow : na, "Prior Day Low", i_colorPriorLow, 1, style=plot.style_stepline, display=display.all - display.status_line)
 plot(i_showPriorWeek and showDailyLevels and not na(priorWeekHigh) ? priorWeekHigh : na, "Prior Week High", i_colorPriorWeekH, 1, style=plot.style_stepline, display=display.all - display.status_line)
